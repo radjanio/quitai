@@ -1,0 +1,6 @@
+{
+  "name": "FinanTrack — Gestão de Dívidas",
+  "description": "Sistema completo e moderno para controle e gestão de dívidas de longo prazo, parcelamentos, veículos, imóveis, terrenos e empréstimos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
