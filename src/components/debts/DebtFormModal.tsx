@@ -8,6 +8,7 @@ import { Debt, DebtCategory, DebtStatus, PaymentMethod } from '../../types/finan
 import { formatCurrency, parseCurrencyInput } from '../../utils/currency';
 import { getTodayIso } from '../../utils/dates';
 import { Calculator, HelpCircle, Layers, Sliders } from 'lucide-react';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 interface DebtFormModalProps {
   isOpen: boolean;
@@ -25,6 +26,8 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
   onSave,
   debtToEdit,
 }) => {
+  const { checkCanAddDebt, triggerUpgradeNotice } = useSubscription();
+
   // Basic info
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -144,6 +147,17 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
+
+    if (!debtToEdit) {
+      const check = checkCanAddDebt();
+      if (!check.allowed) {
+        onClose();
+        triggerUpgradeNotice(
+          check.message || 'Você atingiu o limite de dívidas ativas para o seu plano atual.'
+        );
+        return;
+      }
+    }
 
     const totalAmountCents = parseCurrencyInput(totalAmountStr);
     const downPaymentCents = parseCurrencyInput(downPaymentStr);

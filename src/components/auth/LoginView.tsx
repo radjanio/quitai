@@ -95,6 +95,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister, onSucc
 
         {/* Card */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none backdrop-blur-md">
+          {/* Security Status Pill */}
+          <div className="flex items-center justify-between pb-4 mb-5 border-b border-slate-100 dark:border-slate-800 text-xs">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+              <span className="font-bold text-[11px] text-emerald-600 dark:text-emerald-400">
+                Acesso Seguro & Criptografado
+              </span>
+            </div>
+            <span className="text-[10px] font-medium text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md border border-slate-200 dark:border-slate-700">
+              Protegido
+            </span>
+          </div>
+
           {error && (
             <div className="mb-5 p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 flex items-start gap-2.5 text-xs text-rose-700 dark:text-rose-300 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -174,34 +190,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister, onSucc
               disabled={isSubmitting}
               className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-bold text-sm transition-all shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50 mt-1"
             >
-              {isSubmitting ? 'Verificando credenciais...' : 'Entrar no QuitaÍ'}
+              {isSubmitting ? 'Acessando conta...' : 'Entrar no QuitaÍ'}
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
 
           {/* Quick Demo Access Button */}
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
             <button
               type="button"
               onClick={handleQuickDemoLogin}
               disabled={isSubmitting}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-200 dark:border-slate-700/60"
+              className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer"
             >
               <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>Acesso Rápido de Teste (Usuário Demo)</span>
+              <span>Acesso Rápido de Demonstração (Demo)</span>
             </button>
           </div>
 
           {/* Switch to Register */}
-          <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
+          <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Ainda não tem conta?{' '}
+              Ainda não possui uma conta?{' '}
               <button
                 type="button"
                 onClick={onSwitchToRegister}
-                className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline"
+                className="text-emerald-600 dark:text-emerald-400 font-bold hover:underline cursor-pointer"
               >
-                Criar uma conta
+                Cadastrar-se agora
               </button>
             </p>
           </div>

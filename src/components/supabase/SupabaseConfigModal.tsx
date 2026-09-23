@@ -27,7 +27,9 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({ isOpen
 
   const projectId = 'ybdnhrtetahnvvtbapwm';
   const supabaseUrl = 'https://ybdnhrtetahnvvtbapwm.supabase.co';
-  const anonKey = 'sb_publishable_9dNth1fNpCxozI8hNaSLiA_uc2uIkYp';
+  const anonKey =
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InliZG5ocnRldGFobnZ2dGJhcHdtIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMDMzMTIsImV4cCI6MjEwNTY3OTMxMn0.ifYn3nxffebWgNycFJoMSfCjvgaY7rKjJ7g5hO2ecjs';
+  const publishableKey = 'sb_publishable_9dNth1fNpCxozI8hNaSLiA_uc2uIkYp';
 
   const sqlScript = `-- ==============================================================================
 -- QUITAÍ — SCRIPT SQL COMPLETO PARA O SUPABASE COM RLS (ROW LEVEL SECURITY)
@@ -296,6 +298,47 @@ alter table public.investment_transactions enable row level security;
 create policy "RLS inv_tx select" on public.investment_transactions for select using (auth.uid() = user_id);
 create policy "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
 create policy "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
+
+-- 12. Assinaturas de Planos (subscriptions)
+create table if not exists public.subscriptions (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_id text not null default 'gratis',
+  status text not null default 'active',
+  billing_cycle text not null default 'monthly',
+  current_period_start timestamp with time zone default now(),
+  current_period_end timestamp with time zone default (now() + interval '30 days'),
+  cancel_at_period_end boolean default false,
+  payment_method text default 'pix',
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table public.subscriptions enable row level security;
+create policy "RLS subscriptions select" on public.subscriptions for select using (auth.uid() = user_id);
+create policy "RLS subscriptions insert" on public.subscriptions for insert with check (auth.uid() = user_id);
+create policy "RLS subscriptions update" on public.subscriptions for update using (auth.uid() = user_id);
+create policy "RLS subscriptions delete" on public.subscriptions for delete using (auth.uid() = user_id);
+
+-- 13. Faturas e Recibos de Pagamento (invoices)
+create table if not exists public.invoices (
+  id text primary key,
+  receipt_number text not null,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  plan_id text not null,
+  plan_name text not null,
+  billing_cycle text not null default 'monthly',
+  amount_cents bigint not null,
+  status text not null default 'paid',
+  payment_method text not null default 'pix',
+  paid_at timestamp with time zone default now(),
+  created_at timestamp with time zone default now()
+);
+
+alter table public.invoices enable row level security;
+create policy "RLS invoices select" on public.invoices for select using (auth.uid() = user_id);
+create policy "RLS invoices insert" on public.invoices for insert with check (auth.uid() = user_id);
+create policy "RLS invoices delete" on public.invoices for delete using (auth.uid() = user_id);
 `;
 
   const handleCopy = () => {
@@ -361,22 +404,31 @@ create policy "RLS inv_tx delete" on public.investment_transactions for delete u
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6 text-sm text-slate-600 dark:text-slate-300">
           {/* Credentials Summary */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
                 Supabase URL
               </span>
-              <span className="font-mono text-xs text-slate-800 dark:text-slate-200 block truncate">
+              <span className="font-mono text-xs text-slate-800 dark:text-slate-200 block truncate" title={supabaseUrl}>
                 {supabaseUrl}
               </span>
             </div>
 
             <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
               <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
-                Chave Pública (Anon Key)
+                Anon Key (JWT)
               </span>
-              <span className="font-mono text-xs text-slate-800 dark:text-slate-200 block truncate">
+              <span className="font-mono text-xs text-slate-800 dark:text-slate-200 block truncate" title={anonKey}>
                 {anonKey}
+              </span>
+            </div>
+
+            <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800">
+              <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
+                Publishable Key
+              </span>
+              <span className="font-mono text-xs text-slate-800 dark:text-slate-200 block truncate" title={publishableKey}>
+                {publishableKey}
               </span>
             </div>
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   User,
   Mail,
@@ -15,24 +15,68 @@ import {
   Save,
   KeyRound,
   Database,
+  Sparkles,
+  CreditCard,
+  Receipt,
+  FileText,
+  Check,
+  ArrowRight,
+  Clock,
+  HardDrive,
+  Layers,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
+import { useSubscription } from '../../context/SubscriptionContext';
+import { BillingCycle, PlanConfig } from '../../types/subscription';
 import { formatDate } from '../../utils/dates';
+import { formatCurrencyCents } from '../../utils/currency';
 import { SupabaseConfigModal } from '../supabase/SupabaseConfigModal';
 
 interface UserProfileViewProps {
   onBackToDashboard: () => void;
+  onOpenPlans?: () => void;
+  initialTab?: 'profile' | 'plans';
 }
 
-export const UserProfileView: React.FC<UserProfileViewProps> = ({ onBackToDashboard }) => {
+export const UserProfileView: React.FC<UserProfileViewProps> = ({
+  onBackToDashboard,
+  onOpenPlans,
+  initialTab = 'profile',
+}) => {
   const { user, updateName, changePassword, logout, deleteAccount } = useAuth();
   const { debts, installments, showToast } = useFinance();
+  const {
+    currentPlan,
+    userSubscription,
+    usageMetrics,
+    invoices,
+    cancelSubscription,
+    reactivateSubscription,
+    openCheckout,
+    plans,
+  } = useSubscription();
+
+  // Active Tab: 'profile' | 'plans'
+  const [activeTab, setActiveTab] = useState<'profile' | 'plans'>(initialTab);
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>(
+    userSubscription?.billingCycle || 'monthly'
+  );
+
+  // Sync initialTab when prop changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   // Name editing
   const [name, setName] = useState(user?.name || '');
   const [isUpdatingName, setIsUpdatingName] = useState(false);
   const [nameFeedback, setNameFeedback] = useState<string | null>(null);
+
+  // Cancellation modal state
+  const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
 
   // Password changing
   const [currentPassword, setCurrentPassword] = useState('');
@@ -210,8 +254,453 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onBackToDashbo
         </div>
       </div>
 
-      {/* Grid of Forms */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* Tab Switcher: Gerenciar Perfil vs Gerenciar Planos */}
+      <div className="flex items-center justify-between flex-wrap gap-3 bg-white dark:bg-slate-900 p-2 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setActiveTab('profile')}
+            className={`flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'profile'
+                ? 'bg-emerald-600 text-white shadow-md shadow-emerald-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Gerenciar Perfil</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('plans')}
+            className={`flex-1 sm:flex-initial py-2.5 px-5 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition-all cursor-pointer ${
+              activeTab === 'plans'
+                ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            }`}
+          >
+            <Sparkles className="w-4 h-4" />
+            <span>Gerenciar Planos & Assinatura</span>
+            <span
+              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                activeTab === 'plans'
+                  ? 'bg-white/20 text-white'
+                  : 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+              }`}
+            >
+              {currentPlan.name}
+            </span>
+          </button>
+        </div>
+
+        <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400 pr-2">
+          <span>{activeTab === 'profile' ? 'Dados da conta e segurança' : 'Status, limites e upgrade'}</span>
+        </div>
+      </div>
+
+      {/* ABA 1: GERENCIAR PLANOS & ASSINATURA */}
+      {activeTab === 'plans' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* SEÇÃO MINHA ASSINATURA ATUAL */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                      Minha Assinatura
+                    </h2>
+                    <span
+                      className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${
+                        currentPlan.id === 'premium'
+                          ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border border-purple-500/20'
+                          : currentPlan.id === 'plus'
+                          ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                          : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                      }`}
+                    >
+                      {currentPlan.name}
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    {currentPlan.tagline}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold text-slate-500">
+                  Ciclo: <strong className="text-slate-800 dark:text-slate-200 uppercase">{userSubscription?.billingCycle === 'annual' ? 'Anual' : 'Mensal'}</strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Subscription Status & Billing Information */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
+                  Status da Assinatura
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-sm font-bold text-slate-900 dark:text-white capitalize">
+                    {userSubscription?.cancelAtPeriodEnd ? 'Cancelamento Agendado' : 'Ativa e em dia'}
+                  </span>
+                </div>
+                {userSubscription?.cancelAtPeriodEnd && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-1">
+                    Acesso garantido até o final do período contratado.
+                  </p>
+                )}
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
+                  {currentPlan.id === 'gratis' ? 'Plano' : 'Próxima Renovação'}
+                </span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white">
+                  {currentPlan.id === 'gratis'
+                    ? 'Sem custo / Vitalício'
+                    : formatDate(userSubscription?.currentPeriodEnd || new Date().toISOString())}
+                </span>
+                {currentPlan.id !== 'gratis' && (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Ciclo {userSubscription?.billingCycle === 'annual' ? 'Anual' : 'Mensal'}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950/60 border border-slate-100 dark:border-slate-800">
+                <span className="text-[11px] uppercase tracking-wider text-slate-400 font-semibold block mb-1">
+                  Forma de Pagamento
+                </span>
+                <span className="text-sm font-bold text-slate-900 dark:text-white uppercase flex items-center gap-1.5">
+                  <CreditCard className="w-4 h-4 text-emerald-500" />
+                  {currentPlan.id === 'gratis'
+                    ? 'Gratuito'
+                    : userSubscription?.paymentMethod === 'pix'
+                    ? 'PIX Instantâneo'
+                    : 'Cartão de Crédito'}
+                </span>
+                {currentPlan.id !== 'gratis' && (
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Sem armazenamento de dados sensíveis
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Recursos Utilizados e Limites do Plano */}
+            <div className="space-y-3 pt-2">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                Consumo e Limites do Plano
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {/* Dívidas */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Dívidas Cadastradas
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {usageMetrics.debtsCount} /{' '}
+                      {usageMetrics.debtsLimit === -1 ? 'Ilimitadas' : usageMetrics.debtsLimit}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        usageMetrics.debtsPercentage >= 100
+                          ? 'bg-rose-500'
+                          : usageMetrics.debtsPercentage >= 80
+                          ? 'bg-amber-500'
+                          : 'bg-emerald-500'
+                      }`}
+                      style={{
+                        width: `${usageMetrics.debtsLimit === -1 ? 15 : Math.max(5, usageMetrics.debtsPercentage)}%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Anexos */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Anexos e Documentos
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {usageMetrics.attachmentsCount} /{' '}
+                      {usageMetrics.attachmentsLimit === -1
+                        ? 'Ilimitados'
+                        : usageMetrics.attachmentsLimit}
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-teal-500 transition-all"
+                      style={{
+                        width: `${
+                          usageMetrics.attachmentsLimit === -1 ? 10 : Math.max(5, usageMetrics.attachmentsPercentage)
+                        }%`,
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Armazenamento */}
+                <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
+                  <div className="flex items-center justify-between text-xs mb-1.5">
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">
+                      Espaço em Nuvem
+                    </span>
+                    <span className="font-bold text-slate-900 dark:text-white">
+                      {usageMetrics.storageMbUsed} MB / {usageMetrics.storageMbLimit} MB
+                    </span>
+                  </div>
+                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-purple-500 transition-all"
+                      style={{ width: `${Math.max(5, usageMetrics.storagePercentage)}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Cancellation and Action Row */}
+            {currentPlan.id !== 'gratis' && (
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 dark:border-slate-800">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Caso cancele, seus lançamentos e documentos não serão apagados.
+                </p>
+                {userSubscription?.cancelAtPeriodEnd ? (
+                  <button
+                    type="button"
+                    onClick={reactivateSubscription}
+                    className="py-1.5 px-3 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 text-xs font-bold transition-colors cursor-pointer"
+                  >
+                    Reativar Renovação Automática
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setIsCancelModalOpen(true)}
+                    className="text-xs font-semibold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 hover:underline py-1 cursor-pointer"
+                  >
+                    Cancelar assinatura
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ESCOLHA E COMPARATIVO DE PLANOS DISPONÍVEIS */}
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-purple-500" />
+                  Planos Disponíveis & Alteração de Assinatura
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                  Faça upgrade para acelerar o pagamento das suas dívidas e liberar relatórios ilimitados.
+                </p>
+              </div>
+
+              {/* Toggle Mensal / Anual */}
+              <div className="inline-flex items-center p-1 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700/60 self-start sm:self-auto">
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('monthly')}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    billingCycle === 'monthly'
+                      ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Mensal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingCycle('annual')}
+                  className={`py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                    billingCycle === 'annual'
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  Anual
+                  <span className="text-[9px] font-black uppercase bg-emerald-700/60 text-white px-1.5 py-0.2 rounded-full">
+                    -2 meses
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Cards dos 3 planos */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
+              {plans.map((plan) => {
+                const isCurrent = currentPlan.id === plan.id;
+                const isHighlight = plan.id === 'plus';
+                const priceCents =
+                  billingCycle === 'annual'
+                    ? Math.round(plan.annualPriceCents / 12)
+                    : plan.monthlyPriceCents;
+
+                return (
+                  <div
+                    key={plan.id}
+                    className={`flex flex-col rounded-2xl p-5 sm:p-6 transition-all relative ${
+                      isHighlight
+                        ? 'bg-gradient-to-b from-emerald-50/60 via-white to-white dark:from-emerald-950/20 dark:via-slate-900 dark:to-slate-900 border-2 border-emerald-500 shadow-md'
+                        : isCurrent
+                        ? 'bg-white dark:bg-slate-900 border-2 border-purple-500/60 dark:border-purple-500/40 shadow-sm'
+                        : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm hover:border-slate-300 dark:hover:border-slate-700'
+                    }`}
+                  >
+                    {isHighlight && (
+                      <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-0.5 bg-emerald-600 text-white text-[10px] font-black uppercase tracking-wider rounded-full shadow-sm">
+                        Mais Popular
+                      </div>
+                    )}
+
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-2.5 py-0.5 rounded-full">
+                        {plan.badge || plan.name}
+                      </span>
+                      {isCurrent && (
+                        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Check className="w-3 h-3" />
+                          Plano Atual
+                        </span>
+                      )}
+                    </div>
+
+                    <h4 className="text-lg font-bold text-slate-900 dark:text-white">{plan.name}</h4>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 min-h-[32px]">
+                      {plan.tagline}
+                    </p>
+
+                    <div className="my-4">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl font-black text-slate-900 dark:text-white">
+                          {plan.id === 'gratis' ? 'R$ 0' : formatCurrencyCents(priceCents)}
+                        </span>
+                        <span className="text-xs font-medium text-slate-400">/mês</span>
+                      </div>
+                      {billingCycle === 'annual' && plan.id !== 'gratis' && (
+                        <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold mt-0.5">
+                          Cobrado anualmente ({formatCurrencyCents(plan.annualPriceCents)})
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={isCurrent}
+                      onClick={() => openCheckout(plan, billingCycle)}
+                      className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all mb-5 flex items-center justify-center gap-1.5 cursor-pointer disabled:cursor-default ${
+                        isCurrent
+                          ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 border border-slate-200 dark:border-slate-700'
+                          : isHighlight
+                          ? 'bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white shadow-md shadow-emerald-600/20'
+                          : 'bg-purple-600 hover:bg-purple-500 active:bg-purple-700 text-white shadow-md shadow-purple-600/20'
+                      }`}
+                    >
+                      {isCurrent ? (
+                        <>
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Seu Plano Atual</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Assinar {plan.name}</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </>
+                      )}
+                    </button>
+
+                    <div className="space-y-2 flex-1 pt-3 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        Recursos incluídos:
+                      </p>
+                      <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-300">
+                        {plan.features.slice(0, 5).map((feat, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0 mt-0.5" />
+                            <span className="text-[11px] leading-tight">{feat}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Histórico de Faturas / Recibos */}
+          {invoices.length > 0 && (
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-sm space-y-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                <Receipt className="w-4 h-4" />
+                Histórico de Pagamentos e Recibos
+              </h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-200 dark:border-slate-800 text-slate-400">
+                      <th className="py-2 px-3">Recibo</th>
+                      <th className="py-2 px-3">Plano</th>
+                      <th className="py-2 px-3">Data</th>
+                      <th className="py-2 px-3">Método</th>
+                      <th className="py-2 px-3">Valor</th>
+                      <th className="py-2 px-3 text-right">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                    {invoices.map((inv) => (
+                      <tr key={inv.id}>
+                        <td className="py-2 px-3 font-mono font-semibold text-slate-800 dark:text-slate-200">
+                          {inv.receiptNumber}
+                        </td>
+                        <td className="py-2 px-3 text-slate-700 dark:text-slate-300 font-medium">
+                          {inv.planName} ({inv.billingCycle === 'annual' ? 'Anual' : 'Mensal'})
+                        </td>
+                        <td className="py-2 px-3 text-slate-500">
+                          {formatDate(inv.paidAt || inv.createdAt)}
+                        </td>
+                        <td className="py-2 px-3 uppercase text-slate-600 dark:text-slate-400 font-semibold">
+                          {inv.paymentMethod}
+                        </td>
+                        <td className="py-2 px-3 font-bold text-slate-900 dark:text-white">
+                          {formatCurrencyCents(inv.amountCents)}
+                        </td>
+                        <td className="py-2 px-3 text-right">
+                          <span className="inline-flex items-center gap-1 font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full text-[10px]">
+                            <Check className="w-3 h-3" />
+                            Pago
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ABA 2: GERENCIAR PERFIL & SEGURANÇA */}
+      {activeTab === 'profile' && (
+        <div className="space-y-8 animate-in fade-in duration-200">
+          {/* Grid of Forms */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Alteração de Nome */}
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-7 shadow-sm space-y-5">
           <div className="flex items-center gap-3">
@@ -449,6 +938,8 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onBackToDashbo
           </button>
         </div>
       </div>
+    </div>
+  )}
 
       {/* Delete Confirmation Modal */}
       {isDeleteModalOpen && (
@@ -503,6 +994,65 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({ onBackToDashbo
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>{isDeleting ? 'Excluindo tudo...' : 'Confirmar Exclusão'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Cancelamento de Assinatura */}
+      {isCancelModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-2xl bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900 dark:text-white">
+                  Cancelar Renovação da Assinatura
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {currentPlan.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+              Tem certeza de que deseja cancelar a renovação automática?
+            </p>
+
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 text-xs space-y-1.5 text-slate-600 dark:text-slate-300">
+              <p className="font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                Seus dados não serão apagados
+              </p>
+              <p>
+                Você continuará com acesso total aos recursos do {currentPlan.name} até o fim do seu período contratado em{' '}
+                <strong>{formatDate(userSubscription?.currentPeriodEnd || new Date().toISOString())}</strong>.
+              </p>
+              <p>
+                Após essa data, sua conta passará para o Quitaí Grátis, sem cobranças futuras.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsCancelModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              >
+                Manter Assinatura
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  await cancelSubscription();
+                  setIsCancelModalOpen(false);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-sm shadow-amber-600/30"
+              >
+                Confirmar Cancelamento
               </button>
             </div>
           </div>

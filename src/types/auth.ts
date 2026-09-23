@@ -11,6 +11,8 @@ export interface UserAccount {
   createdAt: string;
   lastLoginAt?: string;
   termsAcceptedAt?: string;
+  role?: 'admin' | 'user';
+  planId?: 'gratis' | 'plus' | 'premium';
 }
 
 export interface AuthSession {

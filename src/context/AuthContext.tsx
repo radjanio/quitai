@@ -13,6 +13,7 @@ import { supabase } from '../lib/supabase';
 interface AuthContextType {
   user: UserAccount | null;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   isLoading: boolean;
   sessionExpired: boolean;
   dismissSessionExpired: () => void;
@@ -41,14 +42,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     async function initSession() {
       try {
-        // 1. Check if Supabase has an active session
-        const { data } = await supabase.auth.getSession();
+        // 1. Check if Supabase has an active session with a 1200ms timeout
+        const supaPromise = supabase.auth.getSession().catch(() => ({ data: { session: null } }));
+        const timeoutPromise = new Promise<{ data: { session: null } }>((resolve) =>
+          setTimeout(() => resolve({ data: { session: null } }), 1200)
+        );
+        const { data } = await Promise.race([supaPromise, timeoutPromise]);
+
         if (data?.session?.user && isMounted) {
           const supaUser = data.session.user;
+          const isUserAdmin =
+            supaUser.email === 'radjaniokk@gmail.com' ||
+            supaUser.email === 'demo@quitai.com.br' ||
+            supaUser.user_metadata?.role === 'admin';
+
           const account: UserAccount = {
             id: supaUser.id,
             name: supaUser.user_metadata?.name || supaUser.email?.split('@')[0] || 'Usuário',
             email: supaUser.email || '',
+            role: isUserAdmin ? 'admin' : 'user',
             createdAt: supaUser.created_at || new Date().toISOString(),
           };
           setUser(account);
@@ -59,21 +71,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.warn('Supabase session check fallback:', err);
       }
 
-      // 2. Fallback to local session check
+      // 2. Check local session only if user previously logged in manually
       try {
+        const hasManualLogin = localStorage.getItem('quitai_manual_login') === 'true';
+        if (!hasManualLogin) {
+          // Clear any stale auto-login from past visits so user sees login screen
+          AuthStorageService.clearSession();
+          if (isMounted) {
+            setUser(null);
+          }
+          return;
+        }
+
         const { session, isExpired } = AuthStorageService.getCurrentSession();
         if (isExpired) {
           if (isMounted) {
             setSessionExpired(true);
             setUser(null);
+            localStorage.removeItem('quitai_manual_login');
           }
         } else if (session && isMounted) {
           const foundUser = AuthStorageService.findUserById(session.userId);
           if (foundUser) {
-            setUser(foundUser);
+            const isUserAdmin =
+              foundUser.email === 'radjaniokk@gmail.com' ||
+              foundUser.email === 'demo@quitai.com.br' ||
+              foundUser.role === 'admin';
+            setUser({ ...foundUser, role: isUserAdmin ? 'admin' : 'user' });
+            setIsLoading(false);
+            return;
           } else {
             AuthStorageService.clearSession();
-            setUser(null);
+            localStorage.removeItem('quitai_manual_login');
           }
         }
       } catch (e) {
@@ -88,10 +117,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Supabase Auth State Change Listener
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if (session?.user) {
+        const isUserAdmin =
+          session.user.email === 'radjaniokk@gmail.com' ||
+          session.user.email === 'demo@quitai.com.br' ||
+          session.user.user_metadata?.role === 'admin';
+
         const account: UserAccount = {
           id: session.user.id,
           name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Usuário',
           email: session.user.email || '',
+          role: isUserAdmin ? 'admin' : 'user',
           createdAt: session.user.created_at || new Date().toISOString(),
         };
         setUser(account);
@@ -132,35 +167,70 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Login
   const login = useCallback(async (email: string, password: string, rememberMe = false) => {
     setIsLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       // 1. Try Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: normalizedEmail,
         password,
       });
 
       if (!error && data?.user) {
+        const isUserAdmin =
+          data.user.email === 'radjaniokk@gmail.com' ||
+          data.user.email === 'demo@quitai.com.br' ||
+          data.user.user_metadata?.role === 'admin';
+
         const loggedUser: UserAccount = {
           id: data.user.id,
-          name: data.user.user_metadata?.name || email.split('@')[0],
-          email: data.user.email || email,
+          name: data.user.user_metadata?.name || normalizedEmail.split('@')[0],
+          email: data.user.email || normalizedEmail,
+          role: isUserAdmin ? 'admin' : 'user',
           createdAt: data.user.created_at,
         };
+        localStorage.setItem('quitai_manual_login', 'true');
         setUser(loggedUser);
         setSessionExpired(false);
         setIsSupabaseOnline(true);
         return;
       }
 
-      // 2. If Supabase returned error or mock user, fallback to local storage authentication
-      const { user: localUser } = await AuthStorageService.loginUser(email, password, rememberMe);
-      setUser(localUser);
-      setSessionExpired(false);
-    } catch (err: any) {
-      // Fallback
-      const { user: localUser } = await AuthStorageService.loginUser(email, password, rememberMe);
-      setUser(localUser);
-      setSessionExpired(false);
+      // 2. Demo shortcut fallback: allow test user if Supabase doesn't have it created yet
+      if (normalizedEmail === 'demo@quitai.com.br' && password === 'Senha@123') {
+        const { user: localUser } = await AuthStorageService.loginUser(normalizedEmail, password, rememberMe);
+        localStorage.setItem('quitai_manual_login', 'true');
+        setUser({ ...localUser, role: 'admin' });
+        setSessionExpired(false);
+        return;
+      }
+
+      // 3. Fallback to local storage user if registered locally
+      try {
+        const { user: localUser } = await AuthStorageService.loginUser(normalizedEmail, password, rememberMe);
+        localStorage.setItem('quitai_manual_login', 'true');
+        setUser(localUser);
+        setSessionExpired(false);
+        return;
+      } catch {
+        // Continue to throw specific error below
+      }
+
+      // 4. Translate Supabase error for the user
+      if (error) {
+        if (
+          error.message.includes('Invalid login credentials') ||
+          error.message.includes('invalid_credentials')
+        ) {
+          throw new Error('E-mail ou senha incorretos no Supabase. Se ainda não possui conta, cadastre-se ao lado.');
+        } else if (error.message.includes('Email not confirmed')) {
+          throw new Error('Seu e-mail cadastrado no Supabase ainda não foi confirmado. Verifique sua caixa de entrada.');
+        } else {
+          throw new Error(`Falha no Supabase: ${error.message}`);
+        }
+      }
+
+      throw new Error('Não foi possível entrar. Verifique seus dados.');
     } finally {
       setIsLoading(false);
     }
@@ -169,27 +239,48 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Register
   const register = useCallback(async (name: string, email: string, password: string) => {
     setIsLoading(true);
+    const normalizedEmail = email.trim().toLowerCase();
+
     try {
       // 1. Try Supabase Auth SignUp
       const { data, error } = await supabase.auth.signUp({
-        email,
+        email: normalizedEmail,
         password,
         options: {
           data: {
-            name,
+            name: name.trim(),
           },
         },
       });
 
-      if (!error && data?.user) {
+      if (error) {
+        if (error.message.includes('already registered')) {
+          throw new Error('Este e-mail já está cadastrado no Supabase. Faça login na sua conta.');
+        }
+        throw new Error(`Erro no Supabase: ${error.message}`);
+      }
+
+      if (data?.user) {
+        const isUserAdmin =
+          normalizedEmail === 'radjaniokk@gmail.com' ||
+          normalizedEmail === 'demo@quitai.com.br';
+
         const newUser: UserAccount = {
           id: data.user.id,
-          name,
-          email,
+          name: name.trim(),
+          email: normalizedEmail,
+          role: isUserAdmin ? 'admin' : 'user',
           createdAt: data.user.created_at || new Date().toISOString(),
         };
+
         // Also save local shadow for instant offline support
-        await AuthStorageService.registerUser(name, email, password);
+        try {
+          await AuthStorageService.registerUser(name, normalizedEmail, password);
+        } catch {
+          // ignore if exists locally
+        }
+
+        localStorage.setItem('quitai_manual_login', 'true');
         setUser(newUser);
         setSessionExpired(false);
         setIsSupabaseOnline(true);
@@ -197,11 +288,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       // 2. Fallback local user registration
-      const { user: localNewUser } = await AuthStorageService.registerUser(name, email, password);
-      setUser(localNewUser);
-      setSessionExpired(false);
-    } catch (err: any) {
-      const { user: localNewUser } = await AuthStorageService.registerUser(name, email, password);
+      const { user: localNewUser } = await AuthStorageService.registerUser(name, normalizedEmail, password);
+      localStorage.setItem('quitai_manual_login', 'true');
       setUser(localNewUser);
       setSessionExpired(false);
     } finally {
@@ -214,8 +302,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await supabase.auth.signOut();
     } catch (e) {
-      // ignore
+      console.warn('Supabase signOut error:', e);
     }
+    localStorage.removeItem('quitai_manual_login');
     AuthStorageService.clearSession();
     setUser(null);
     setSessionExpired(false);
@@ -281,6 +370,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const value = {
     user,
     isAuthenticated: !!user,
+    isAdmin: user?.email === 'radjaniokk@gmail.com' || user?.email === 'demo@quitai.com.br' || user?.role === 'admin',
     isLoading,
     sessionExpired,
     dismissSessionExpired,

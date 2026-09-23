@@ -14,8 +14,12 @@ import {
   Edit2,
   Sliders,
   Sparkles,
+  Lock,
+  ShieldCheck,
+  ArrowRight,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 import { Investment, InvestmentType, InvestmentTransactionType } from '../../types/finance';
 import { formatCurrencyCents } from '../../utils/currency';
 import { InvestmentFormModal } from './InvestmentFormModal';
@@ -123,17 +127,92 @@ export const InvestmentListView: React.FC = () => {
     setIsFormModalOpen(true);
   };
 
+  const { canAccess, openCheckout, plans } = useSubscription();
+  const hasInvestmentAccess = canAccess('hasInvestments');
+  const plusPlan = plans.find((p) => p.id === 'plus') || plans[1];
+
   const handleCreate = () => {
+    if (!hasInvestmentAccess) {
+      openCheckout(plusPlan, 'monthly');
+      return;
+    }
     setInvestmentToEdit(null);
     setIsFormModalOpen(true);
   };
 
   const handleOpenTx = (inv: Investment) => {
+    if (!hasInvestmentAccess) {
+      openCheckout(plusPlan, 'monthly');
+      return;
+    }
     setTxModalState({ isOpen: true, investment: inv });
   };
 
+  if (!hasInvestmentAccess && investments.length === 0) {
+    return (
+      <div className="max-w-3xl mx-auto py-12 px-4 text-center animate-in fade-in">
+        <div className="w-16 h-16 rounded-3xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mx-auto mb-4">
+          <Sparkles className="w-8 h-8" />
+        </div>
+        <span className="text-xs font-bold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 bg-indigo-500/10 px-3 py-1 rounded-full">
+          Recurso Exclusivo QuitaÍ Plus & Premium
+        </span>
+        <h2 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-4 tracking-tight">
+          Acompanhe seus investimentos e construa seu patrimônio
+        </h2>
+        <p className="text-sm text-slate-600 dark:text-slate-300 mt-3 max-w-xl mx-auto">
+          Monitore reservas de emergência, Tesouro Direto, CDBs, LCI/LCA, ações e fundos imobiliários com cálculo automático de rendimento e rentabilidade.
+        </p>
+
+        <div className="mt-8 p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm text-left max-w-lg mx-auto space-y-3">
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Controle total de aportes e resgates</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Cálculo de rentabilidade e lucros acumulados</span>
+          </div>
+          <div className="flex items-center gap-3 text-xs font-semibold text-slate-700 dark:text-slate-200">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Dados preservados mesmo se você alterar seu plano</span>
+          </div>
+        </div>
+
+        <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => openCheckout(plusPlan, 'monthly')}
+            className="w-full sm:w-auto py-3.5 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+          >
+            <span>Fazer Upgrade para Plus</span>
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 animate-in fade-in duration-150">
+      {/* Aviso de downgrade se o usuário já possuía investimentos */}
+      {!hasInvestmentAccess && investments.length > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-900 dark:text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <Lock className="w-4 h-4 text-amber-500 shrink-0" />
+            <span>
+              <strong>Modo Somente Leitura:</strong> Seus {investments.length} investimentos continuam preservados e salvos. Para adicionar novos aportes ou editar, faça upgrade para o QuitaÍ Plus.
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => openCheckout(plusPlan, 'monthly')}
+            className="py-1.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shrink-0 self-start sm:self-auto transition-colors"
+          >
+            Fazer Upgrade
+          </button>
+        </div>
+      )}
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

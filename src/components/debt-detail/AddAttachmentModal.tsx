@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { Modal } from '../common/Modal';
 import { Attachment, Installment } from '../../types/finance';
 import { Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { useSubscription } from '../../context/SubscriptionContext';
 
 interface AddAttachmentModalProps {
   isOpen: boolean;
@@ -30,6 +31,7 @@ export const AddAttachmentModal: React.FC<AddAttachmentModalProps> = ({
   installments,
   onUpload,
 }) => {
+  const { checkCanAddAttachment, triggerUpgradeNotice } = useSubscription();
   const [file, setFile] = useState<File | null>(null);
   const [dataUrl, setDataUrl] = useState<string>('');
   const [category, setCategory] = useState<Attachment['category']>('contrato');
@@ -41,8 +43,8 @@ export const AddAttachmentModal: React.FC<AddAttachmentModalProps> = ({
     const selected = e.target.files?.[0];
     if (!selected) return;
 
-    if (selected.size > 10 * 1024 * 1024) {
-      alert('O arquivo selecionado deve ter no máximo 10MB.');
+    if (selected.size > 15 * 1024 * 1024) {
+      alert('O arquivo selecionado deve ter no máximo 15MB.');
       return;
     }
 
@@ -60,6 +62,15 @@ export const AddAttachmentModal: React.FC<AddAttachmentModalProps> = ({
     e.preventDefault();
     if (!file || !dataUrl) {
       alert('Selecione um arquivo.');
+      return;
+    }
+
+    const check = checkCanAddAttachment(file.size);
+    if (!check.allowed) {
+      onClose();
+      triggerUpgradeNotice(
+        check.message || 'Você atingiu o limite de armazenamento ou anexos do seu plano.'
+      );
       return;
     }
 

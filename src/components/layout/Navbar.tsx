@@ -23,9 +23,12 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Briefcase,
+  Settings,
+  Lock,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
+import { useSubscription } from '../../context/SubscriptionContext';
 import { SupabaseConfigModal } from '../supabase/SupabaseConfigModal';
 
 export type AppNavView =
@@ -36,7 +39,9 @@ export type AppNavView =
   | 'investments'
   | 'calendar'
   | 'reports'
-  | 'profile';
+  | 'profile'
+  | 'plans'
+  | 'admin';
 
 interface NavbarProps {
   currentView: AppNavView;
@@ -60,7 +65,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   onToggleDarkMode,
 }) => {
   const { debts, incomes, expenses, investments, loadDemoData } = useFinance();
-  const { user, logout } = useAuth();
+  const { user, logout, isAdmin } = useAuth();
+  const { currentPlan } = useSubscription();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isCreateMenuOpen, setIsCreateMenuOpen] = useState(false);
   const [isSupabaseModalOpen, setIsSupabaseModalOpen] = useState(false);
@@ -99,6 +105,8 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'investments' as AppNavView, label: 'Investimentos', icon: TrendingUp, badge: investments.length },
     { id: 'calendar' as AppNavView, label: 'Calendário', icon: Calendar },
     { id: 'reports' as AppNavView, label: 'Relatórios', icon: FileSpreadsheet },
+    { id: 'profile' as AppNavView, label: 'Perfil & Planos', icon: User },
+    ...(isAdmin ? [{ id: 'admin' as AppNavView, label: 'Admin', icon: Settings }] : []),
   ];
 
   return (
@@ -131,7 +139,8 @@ export const Navbar: React.FC<NavbarProps> = ({
         <nav className="hidden lg:flex items-center gap-1">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentView === item.id;
+            const isActive =
+              currentView === item.id || (item.id === 'profile' && currentView === 'plans');
             return (
               <button
                 key={item.id}
@@ -286,9 +295,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               {isUserMenuOpen && (
                 <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 py-2 z-50 animate-in fade-in zoom-in-95 duration-100">
                   <div className="px-4 py-2.5 border-b border-slate-100 dark:border-slate-800">
-                    <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
-                      {user.name}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                        {user.name}
+                      </p>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          currentPlan.id === 'premium'
+                            ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
+                            : currentPlan.id === 'plus'
+                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
+                        }`}
+                      >
+                        {currentPlan.name}
+                      </span>
+                    </div>
                     <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
                     <div className="mt-1.5 flex items-center gap-1 text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold">
                       <ShieldCheck className="w-3.5 h-3.5" />
@@ -303,11 +325,37 @@ export const Navbar: React.FC<NavbarProps> = ({
                         setIsUserMenuOpen(false);
                         onNavigate('profile');
                       }}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2"
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
                     >
                       <User className="w-4 h-4 text-slate-400" />
-                      <span>Meu Perfil & Segurança</span>
+                      <span>Gerenciar Perfil</span>
                     </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        onNavigate('plans');
+                      }}
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                    >
+                      <Sparkles className="w-4 h-4 text-purple-500" />
+                      <span>Gerenciar Planos & Assinatura</span>
+                    </button>
+
+                    {isAdmin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsUserMenuOpen(false);
+                          onNavigate('admin');
+                        }}
+                        className="w-full px-4 py-2 text-left text-xs font-medium text-purple-600 dark:text-purple-400 hover:bg-purple-50 dark:hover:bg-purple-950/30 flex items-center gap-2"
+                      >
+                        <Lock className="w-4 h-4 text-purple-500" />
+                        <span>Painel Administrativo</span>
+                      </button>
+                    )}
 
                     <button
                       type="button"
@@ -374,6 +422,19 @@ export const Navbar: React.FC<NavbarProps> = ({
         >
           <Calendar className="w-4 h-4" />
           <span>Agenda</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onNavigate('profile')}
+          className={`flex flex-col items-center gap-0.5 text-[10px] font-bold py-1 px-2.5 rounded-lg ${
+            currentView === 'profile' || currentView === 'plans'
+              ? 'text-emerald-600 dark:text-emerald-400'
+              : 'text-slate-500 dark:text-slate-400'
+          }`}
+        >
+          <User className="w-4 h-4" />
+          <span>Perfil</span>
         </button>
       </div>
 

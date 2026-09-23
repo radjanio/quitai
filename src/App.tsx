@@ -5,6 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SubscriptionProvider, useSubscription } from './context/SubscriptionContext';
 import { FinanceProvider, useFinance } from './context/FinanceContext';
 import { Navbar, AppNavView } from './components/layout/Navbar';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -19,6 +20,10 @@ import { InvestmentFormModal } from './components/investments/InvestmentFormModa
 import { FinancialCalendarView } from './components/calendar/FinancialCalendarView';
 import { ReportsView } from './components/reports/ReportsView';
 import { UserProfileView } from './components/profile/UserProfileView';
+import { PlansView } from './components/subscription/PlansView';
+import { AdminDashboardView } from './components/admin/AdminDashboardView';
+import { UpgradeNoticeModal } from './components/subscription/UpgradeNoticeModal';
+import { CheckoutModal } from './components/subscription/CheckoutModal';
 import { LoginView } from './components/auth/LoginView';
 import { RegisterView } from './components/auth/RegisterView';
 import { SessionExpiredModal } from './components/auth/SessionExpiredModal';
@@ -249,7 +254,23 @@ function MainApp() {
             {currentView === 'reports' && <ReportsView />}
 
             {currentView === 'profile' && (
-              <UserProfileView onBackToDashboard={() => setCurrentView('dashboard')} />
+              <UserProfileView
+                onBackToDashboard={() => setCurrentView('dashboard')}
+                onOpenPlans={() => setCurrentView('plans')}
+                initialTab="profile"
+              />
+            )}
+
+            {currentView === 'plans' && (
+              <UserProfileView
+                onBackToDashboard={() => setCurrentView('dashboard')}
+                onOpenPlans={() => setCurrentView('plans')}
+                initialTab="plans"
+              />
+            )}
+
+            {currentView === 'admin' && (
+              <AdminDashboardView onBackToDashboard={() => setCurrentView('dashboard')} />
             )}
           </>
         )}
@@ -318,6 +339,10 @@ function MainApp() {
         onConfirmPayment={handleConfirmQuickPay}
       />
 
+      {/* Subscription Limit Enforcer & Checkout Modals */}
+      <UpgradeNoticeModal onOpenPlans={() => setCurrentView('plans')} />
+      <CheckoutModal />
+
       {/* Session Expired & Toast Feedback */}
       <SessionExpiredModal />
       <ToastContainer />
@@ -329,7 +354,9 @@ export function App() {
   return (
     <AuthProvider>
       <FinanceProvider>
-        <MainApp />
+        <SubscriptionProvider>
+          <MainApp />
+        </SubscriptionProvider>
       </FinanceProvider>
     </AuthProvider>
   );
