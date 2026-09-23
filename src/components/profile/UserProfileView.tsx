@@ -541,11 +541,11 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
               </div>
             </div>
 
-            {/* Cards dos 3 planos */}
+            {/* Cards dos planos cadastrados e ativos */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-stretch">
-              {plans.map((plan) => {
+              {plans.filter((p) => p.isActive !== false).map((plan) => {
                 const isCurrent = currentPlan.id === plan.id;
-                const isHighlight = plan.id === 'plus';
+                const isHighlight = Boolean(plan.highlighted) || plan.id === 'plus';
                 const priceCents =
                   billingCycle === 'annual'
                     ? Math.round(plan.annualPriceCents / 12)

@@ -3,7 +3,7 @@
  * Domain types & interfaces for Plans, Subscriptions, Payments and Gateways
  */
 
-export type PlanTier = 'gratis' | 'plus' | 'premium';
+export type PlanTier = string;
 
 export type BillingCycle = 'monthly' | 'annual';
 
@@ -15,9 +15,9 @@ export type SubscriptionStatus =
   | 'incomplete'
   | 'none';
 
-export type PaymentMethodType = 'pix' | 'cartao';
+export type PaymentMethodType = 'pix' | 'cartao' | 'boleto';
 
-export type PaymentProviderType = 'sandbox' | 'stripe' | 'mercadopago' | 'manual_admin';
+export type PaymentProviderType = 'mercadopago' | 'sandbox' | 'stripe' | 'manual_admin';
 
 export interface PlanLimits {
   maxDebts: number; // -1 = ilimitado
@@ -42,14 +42,23 @@ export interface PlanFeatureFlags {
 export interface PlanConfig {
   id: PlanTier;
   name: string;
+  description?: string;
   tagline: string;
   badge?: string;
   monthlyPriceCents: number;
   annualPriceCents: number;
+  billingCycle?: 'monthly' | 'annual' | 'both';
+  isActive: boolean;
   limits: PlanLimits;
   flags: PlanFeatureFlags;
   features: string[];
   highlighted?: boolean;
+  mercadoPagoPlanId?: string; // ID do plano no Mercado Pago
+  mercadoPagoMonthlyId?: string;
+  mercadoPagoAnnualId?: string;
+  sortOrder?: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UserSubscription {
@@ -67,6 +76,9 @@ export interface UserSubscription {
   paymentMethod: PaymentMethodType;
   providerSubscriptionId?: string;
   providerCustomerId?: string;
+  mercadoPagoPaymentId?: string;
+  mercadoPagoSubscriptionId?: string;
+  mercadoPagoPreferenceId?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -84,11 +96,36 @@ export interface PaymentInvoice {
   status: 'paid' | 'pending' | 'failed' | 'canceled';
   paymentMethod: PaymentMethodType;
   paymentProvider: PaymentProviderType;
+  mercadoPagoPaymentId?: string;
+  mercadoPagoPreferenceId?: string;
+  mercadoPagoTicketUrl?: string;
   pixQrCode?: string;
   pixCopiaECola?: string;
   paidAt?: string;
   receiptNumber: string;
   createdAt: string;
+}
+
+export interface AdminAuditLog {
+  id: string;
+  adminId?: string;
+  adminEmail: string;
+  action: string;
+  targetId?: string;
+  targetType: 'plan' | 'user' | 'subscription' | 'system';
+  details?: Record<string, any>;
+  ipAddress?: string;
+  createdAt: string;
+}
+
+export interface MercadoPagoWebhookLog {
+  id: string;
+  eventType: string;
+  resourceId?: string;
+  status?: string;
+  payload?: any;
+  processedAt: string;
+  errorMessage?: string;
 }
 
 export interface GatewayConfig {

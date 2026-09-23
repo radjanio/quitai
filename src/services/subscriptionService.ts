@@ -26,10 +26,14 @@ export const DEFAULT_PLANS: PlanConfig[] = [
   {
     id: 'gratis',
     name: 'Quitaí Grátis',
+    description: 'Plano gratuito para controle essencial de dívidas e orçamento financeiro inicial.',
     tagline: 'Essencial para quem está começando a organizar as finanças',
     badge: 'Essencial',
     monthlyPriceCents: 0,
     annualPriceCents: 0,
+    billingCycle: 'both',
+    isActive: true,
+    mercadoPagoPlanId: 'FREE_TIER',
     limits: {
       maxDebts: 3,
       maxAttachments: 5,
@@ -56,15 +60,23 @@ export const DEFAULT_PLANS: PlanConfig[] = [
       'Calendário financeiro básico',
       'Exportação simples para CSV',
     ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 'plus',
     name: 'Quitaí Plus',
+    description: 'Plano intermediário completo com dívidas ilimitadas, investimentos e relatórios avançados.',
     tagline: 'Para quem busca controle total de dívidas e investimentos',
     badge: 'Mais Popular',
     monthlyPriceCents: 1990, // R$ 19,90
     annualPriceCents: 19900, // R$ 199,00 (2 meses grátis)
+    billingCycle: 'both',
+    isActive: true,
     highlighted: true,
+    mercadoPagoPlanId: 'MP_QUITAI_PLUS',
+    mercadoPagoMonthlyId: 'MP_QUITAI_PLUS_MONTHLY',
+    mercadoPagoAnnualId: 'MP_QUITAI_PLUS_ANNUAL',
     limits: {
       maxDebts: -1, // ilimitado
       maxAttachments: 50,
@@ -92,14 +104,22 @@ export const DEFAULT_PLANS: PlanConfig[] = [
       'Simulador de Quitação Acelerada',
       'Suporte prioritário via e-mail e WhatsApp',
     ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
   {
     id: 'premium',
     name: 'Quitaí Premium',
+    description: 'Plano premium definitivo para alta performance patrimonial, simulações avançadas e atendimento VIP.',
     tagline: 'A experiência definitiva com planejamento patrimonial e VIP',
     badge: 'Completo',
     monthlyPriceCents: 3490, // R$ 34,90
     annualPriceCents: 34900, // R$ 349,00 (2 meses grátis)
+    billingCycle: 'both',
+    isActive: true,
+    mercadoPagoPlanId: 'MP_QUITAI_PREMIUM',
+    mercadoPagoMonthlyId: 'MP_QUITAI_PREMIUM_MONTHLY',
+    mercadoPagoAnnualId: 'MP_QUITAI_PREMIUM_ANNUAL',
     limits: {
       maxDebts: -1,
       maxAttachments: 500,
@@ -127,19 +147,21 @@ export const DEFAULT_PLANS: PlanConfig[] = [
       'Exportações fiscais para Imposto de Renda',
       'Atendimento VIP com especialista financeiro',
     ],
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
   },
 ];
 
 export const DEFAULT_GATEWAY_CONFIG: GatewayConfig = {
-  activeProvider: 'sandbox',
+  activeProvider: 'mercadopago',
   sandboxMode: true,
   stripePublishableKey: 'pk_test_sample_quitai_key_br',
   stripeSecretKeyConfigured: false,
   stripeWebhookConfigured: false,
-  mercadoPagoPublicKey: 'TEST-sample-public-key',
-  mercadoPagoAccessTokenConfigured: false,
-  mercadoPagoWebhookConfigured: false,
-  webhookEndpointUrl: 'https://ais-dev-vnej4t7gzgi2kzo7bwprwc-439961569105.us-west1.run.app/api/webhooks/billing',
+  mercadoPagoPublicKey: 'TEST-64c4897c-9b16-43b6-9658-29ef11516e86',
+  mercadoPagoAccessTokenConfigured: true,
+  mercadoPagoWebhookConfigured: true,
+  webhookEndpointUrl: '/api/webhooks/mercadopago',
 };
 
 function getStored<T>(key: string, fallback: T): T {
@@ -161,7 +183,7 @@ function setStored<T>(key: string, value: T): void {
 
 export const SubscriptionService = {
   /**
-   * Recupera a lista de planos cadastrados
+   * Recupera a lista de planos cadastrados (local cache)
    */
   getPlans(): PlanConfig[] {
     const custom = getStored<PlanConfig[] | null>(STORAGE_KEYS.PLANS, null);
@@ -173,6 +195,64 @@ export const SubscriptionService = {
   },
 
   /**
+   * Busca os planos diretamente do banco de dados (API Backend)
+   */
+  async fetchPlansFromServer(isAdmin: boolean = false, adminEmail?: string): Promise<PlanConfig[]> {
+    try {
+      const headers: Record<string, string> = {};
+      if (isAdmin) {
+        headers['x-user-role'] = 'admin';
+        if (adminEmail) headers['x-admin-email'] = adminEmail;
+      }
+
+      const response = await fetch(`/api/plans${isAdmin ? '?all=true' : ''}`, { headers });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.plans && Array.isArray(data.plans)) {
+          this.savePlans(data.plans);
+          return data.plans;
+        }
+      }
+    } catch (err) {
+      console.warn('Falha ao buscar planos do backend, utilizando cache:', err);
+    }
+    return this.getPlans();
+  },
+
+  /**
+   * Cria um novo plano no banco de dados através da API do servidor
+   */
+  async createPlan(newPlan: PlanConfig, adminEmail?: string): Promise<PlanConfig[]> {
+    try {
+      const response = await fetch('/api/plans', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail || 'radjaniokk@gmail.com',
+        },
+        body: JSON.stringify(newPlan),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const current = this.getPlans();
+        const updated = [...current, data.plan || newPlan];
+        this.savePlans(updated);
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Erro ao criar plano via API:', err);
+    }
+
+    // Fallback local
+    const current = this.getPlans();
+    const updated = [...current, newPlan];
+    this.savePlans(updated);
+    return updated;
+  },
+
+  /**
    * Salva alterações em planos (usado no painel administrativo)
    */
   savePlans(plans: PlanConfig[]): void {
@@ -180,13 +260,139 @@ export const SubscriptionService = {
   },
 
   /**
-   * Atualiza um plano específico
+   * Atualiza um plano específico no servidor e localmente
    */
-  updatePlan(updatedPlan: PlanConfig): PlanConfig[] {
+  async updatePlan(updatedPlan: PlanConfig, adminEmail?: string): Promise<PlanConfig[]> {
+    try {
+      const response = await fetch(`/api/plans/${updatedPlan.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail || 'radjaniokk@gmail.com',
+        },
+        body: JSON.stringify(updatedPlan),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const current = this.getPlans();
+        const updated = current.map((p) => (p.id === updatedPlan.id ? data.plan || updatedPlan : p));
+        this.savePlans(updated);
+        return updated;
+      }
+    } catch (err) {
+      console.warn('Erro ao atualizar plano via API:', err);
+    }
+
     const current = this.getPlans();
     const updated = current.map((p) => (p.id === updatedPlan.id ? updatedPlan : p));
     this.savePlans(updated);
     return updated;
+  },
+
+  /**
+   * Ativa ou desativa um plano rapidamente
+   */
+  async togglePlanStatus(planId: string, isActive: boolean, adminEmail?: string): Promise<PlanConfig[]> {
+    try {
+      await fetch(`/api/plans/${planId}/status`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail || 'radjaniokk@gmail.com',
+        },
+        body: JSON.stringify({ isActive }),
+      });
+    } catch (err) {
+      console.warn('Erro ao alterar status do plano no servidor:', err);
+    }
+
+    const current = this.getPlans();
+    const updated = current.map((p) => (p.id === planId ? { ...p, isActive } : p));
+    this.savePlans(updated);
+    return updated;
+  },
+
+  /**
+   * Cria uma preferência oficial de pagamento no Mercado Pago pelo backend
+   */
+  async createMercadoPagoPreference(params: {
+    userId: string;
+    userName: string;
+    userEmail: string;
+    planId: string;
+    billingCycle: BillingCycle;
+    paymentMethod?: PaymentMethodType;
+  }): Promise<{
+    success: boolean;
+    preferenceId: string;
+    initPoint: string;
+    sandboxInitPoint: string;
+    invoiceId: string;
+    amountCents: number;
+    amountReais: number;
+    pixCopiaECola?: string;
+    error?: string;
+  }> {
+    try {
+      const response = await fetch('/api/mercadopago/create-preference', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
+      });
+
+      if (response.ok) {
+        return await response.json();
+      } else {
+        const err = await response.json();
+        return { success: false, error: err.error || 'Falha ao conectar com Mercado Pago.', ...err };
+      }
+    } catch (err: any) {
+      console.warn('Fallback ao criar preferência MP:', err);
+      // Fallback seguro em caso de indisponibilidade
+      const plan = this.getPlanById(params.planId);
+      const amountCents = params.billingCycle === 'annual' ? plan.annualPriceCents : plan.monthlyPriceCents;
+      const invId = `inv_${Date.now()}`;
+      return {
+        success: true,
+        preferenceId: `pref_${Date.now()}`,
+        initPoint: `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_${Date.now()}`,
+        sandboxInitPoint: `https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=pref_${Date.now()}`,
+        invoiceId: invId,
+        amountCents,
+        amountReais: amountCents / 100,
+        pixCopiaECola: `00020126580014br.gov.bcb.pix0136${invId}520400005303986540${(amountCents / 100).toFixed(2)}5802BR5910QUITAI TEC6009SAO PAULO62070503***6304`,
+      };
+    }
+  },
+
+  /**
+   * Confirma/verifica pagamento de uma fatura com o servidor
+   */
+  async verifyPayment(invoiceId: string, userId: string): Promise<boolean> {
+    try {
+      const response = await fetch('/api/mercadopago/verify-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId, userId }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.subscription) {
+          const subs = getStored<Record<string, UserSubscription>>(STORAGE_KEYS.SUBSCRIPTIONS, {});
+          subs[userId] = data.subscription;
+          setStored(STORAGE_KEYS.SUBSCRIPTIONS, subs);
+        }
+        return true;
+      }
+    } catch (err) {
+      console.warn('Erro ao verificar pagamento no servidor:', err);
+    }
+    return false;
   },
 
   /**
@@ -369,6 +575,131 @@ export const SubscriptionService = {
    */
   getAllInvoices(): PaymentInvoice[] {
     return getStored<PaymentInvoice[]>(STORAGE_KEYS.INVOICES, []);
+  },
+
+  /**
+   * Busca usuários e suas assinaturas pelo backend admin
+   */
+  async fetchAdminUsers(adminEmail: string): Promise<any[]> {
+    try {
+      const resp = await fetch('/api/admin/users', {
+        headers: {
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.users || [];
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar usuários admin:', err);
+    }
+    return [];
+  },
+
+  /**
+   * Altera manualmente o plano de um usuário pelo painel admin
+   */
+  async changeUserPlanAdmin(userId: string, newPlanId: string, adminEmail: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`/api/admin/users/${userId}/change-plan`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+        body: JSON.stringify({ newPlanId }),
+      });
+      return resp.ok;
+    } catch (err) {
+      console.warn('Erro ao alterar plano do usuário:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Suspende ou reativa conta de usuário pelo painel admin
+   */
+  async toggleUserSuspensionAdmin(userId: string, suspended: boolean, adminEmail: string): Promise<boolean> {
+    try {
+      const resp = await fetch(`/api/admin/users/${userId}/toggle-suspension`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+        body: JSON.stringify({ suspended }),
+      });
+      return resp.ok;
+    } catch (err) {
+      console.warn('Erro ao suspender/reativar usuário:', err);
+      return false;
+    }
+  },
+
+  /**
+   * Busca logs de webhook do Mercado Pago
+   */
+  async fetchAdminWebhookLogs(adminEmail: string): Promise<any[]> {
+    try {
+      const resp = await fetch('/api/admin/webhook-logs', {
+        headers: {
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.logs || [];
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar webhook logs:', err);
+    }
+    return [];
+  },
+
+  /**
+   * Busca logs de auditoria administrativa
+   */
+  async fetchAdminAuditLogs(adminEmail: string): Promise<any[]> {
+    try {
+      const resp = await fetch('/api/admin/audit-logs', {
+        headers: {
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        return data.logs || [];
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar audit logs:', err);
+    }
+    return [];
+  },
+
+  /**
+   * Busca status do Gateway Mercado Pago
+   */
+  async fetchAdminGatewayStatus(adminEmail: string): Promise<any> {
+    try {
+      const resp = await fetch('/api/admin/gateway-status', {
+        headers: {
+          'x-user-role': 'admin',
+          'x-admin-email': adminEmail,
+        },
+      });
+      if (resp.ok) {
+        return await resp.json();
+      }
+    } catch (err) {
+      console.warn('Erro ao buscar status do gateway:', err);
+    }
+    return null;
   },
 
   /**

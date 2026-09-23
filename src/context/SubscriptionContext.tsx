@@ -1,6 +1,6 @@
 /**
  * QuitaÍ — Contexto de Assinaturas e Controle de Acesso
- * Fornece estado de planos, limites de uso, checkout e administração
+ * Fornece estado de planos sincronizados com Banco de Dados e Mercado Pago
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
@@ -25,6 +25,8 @@ interface SubscriptionContextType {
   userSubscription: UserSubscription | null;
   invoices: PaymentInvoice[];
   usageMetrics: UsageMetrics;
+  isLoadingPlans: boolean;
+  refreshPlans: () => Promise<void>;
   isUpgradeModalOpen: boolean;
   upgradeModalReason: string;
   openUpgradeModal: (reason?: string) => void;
@@ -45,7 +47,9 @@ interface SubscriptionContextType {
   checkCanAddDebt: () => { allowed: boolean; message?: string };
   checkCanAddAttachment: (additionalSizeBytes?: number) => { allowed: boolean; message?: string };
   triggerUpgradeNotice: (reason?: string) => void;
-  adminUpdatePlan: (plan: PlanConfig) => void;
+  adminCreatePlan: (plan: PlanConfig) => Promise<boolean>;
+  adminUpdatePlan: (plan: PlanConfig) => Promise<boolean>;
+  adminTogglePlanStatus: (planId: string, isActive: boolean) => Promise<boolean>;
   adminResetPlans: () => void;
   adminUpdateGatewayConfig: (config: Partial<GatewayConfig>) => void;
   gatewayConfig: GatewayConfig;
@@ -54,10 +58,11 @@ interface SubscriptionContextType {
 const SubscriptionContext = createContext<SubscriptionContextType | undefined>(undefined);
 
 export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { debts, attachments, incomes, expenses, investments, showToast } = useFinance();
 
   const [plans, setPlans] = useState<PlanConfig[]>(() => SubscriptionService.getPlans());
+  const [isLoadingPlans, setIsLoadingPlans] = useState<boolean>(false);
   const [gatewayConfig, setGatewayConfig] = useState<GatewayConfig>(() =>
     SubscriptionService.getGatewayConfig()
   );
@@ -74,6 +79,21 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [isCheckoutModalOpen, setIsCheckoutModalOpen] = useState(false);
   const [checkoutPlan, setCheckoutPlan] = useState<PlanConfig | null>(null);
   const [checkoutCycle, setCheckoutCycle] = useState<BillingCycle>('monthly');
+
+  // Carrega planos diretamente do banco de dados (API Backend)
+  const refreshPlans = useCallback(async () => {
+    setIsLoadingPlans(true);
+    try {
+      const fetched = await SubscriptionService.fetchPlansFromServer(isAdmin, user?.email);
+      setPlans(fetched);
+    } finally {
+      setIsLoadingPlans(false);
+    }
+  }, [isAdmin, user?.email]);
+
+  useEffect(() => {
+    refreshPlans();
+  }, [refreshPlans]);
 
   // Load user subscription and invoices when user changes
   useEffect(() => {
@@ -92,9 +112,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
   // Current active plan
   const currentPlan = useMemo(() => {
     if (!userSubscription) {
-      return SubscriptionService.getPlanById('gratis');
+      return plans.find((p) => p.id === 'gratis') || plans[0] || SubscriptionService.getPlanById('gratis');
     }
-    return SubscriptionService.getPlanById(userSubscription.planId);
+    return plans.find((p) => p.id === userSubscription.planId) || SubscriptionService.getPlanById(userSubscription.planId);
   }, [userSubscription, plans]);
 
   // Compute storage bytes used
@@ -130,7 +150,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (debts.length >= limit) {
       return {
         allowed: false,
-        message: `Você atingiu o limite de ${limit} dívidas do seu plano ${currentPlan.name}. Faça upgrade para o Quitaí Plus para cadastrar dívidas ilimitadas!`,
+        message: `Você atingiu o limite de ${limit} dívidas do seu plano ${currentPlan.name}. Faça upgrade no QuitaÍ para cadastrar dívidas ilimitadas!`,
       };
     }
     return { allowed: true };
@@ -143,7 +163,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (countLimit !== -1 && attachments.length >= countLimit) {
         return {
           allowed: false,
-          message: `Você atingiu o limite de ${countLimit} anexos do plano ${currentPlan.name}. Faça upgrade para o Quitaí Plus para salvar documentos ilimitados!`,
+          message: `Você atingiu o limite de ${countLimit} anexos do plano ${currentPlan.name}. Faça upgrade no QuitaÍ para salvar documentos ilimitados!`,
         };
       }
 
@@ -186,7 +206,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setCheckoutPlan(null);
   }, []);
 
-  // Confirm subscription payment
+  // Confirm subscription payment (Mercado Pago / Oficial)
   const confirmSubscription = useCallback(
     async (
       planId: PlanTier,
@@ -209,11 +229,11 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsCheckoutModalOpen(false);
       setIsUpgradeModalOpen(false);
 
-      const targetPlan = SubscriptionService.getPlanById(planId);
-      showToast(`Parabéns! Sua assinatura do ${targetPlan.name} foi ativada com sucesso!`, 'success');
+      const targetPlan = plans.find((p) => p.id === planId) || SubscriptionService.getPlanById(planId);
+      showToast(`Pagamento aprovado pelo Mercado Pago! Seu plano ${targetPlan.name} está liberado.`, 'success');
       return invoice;
     },
-    [user, showToast]
+    [user, plans, showToast]
   );
 
   // Cancel subscription
@@ -221,7 +241,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
     const updated = SubscriptionService.cancelUserSubscription(user.id);
     setUserSubscription({ ...updated });
-    showToast('Sua assinatura não será renovada no próximo ciclo. Seus dados permanecem intactos.', 'info');
+    showToast('Sua assinatura não será renovada no próximo ciclo. Seus dados financeiros permanecem integralmente salvos e seguros.', 'info');
   }, [user, showToast]);
 
   // Reactivate subscription
@@ -229,17 +249,45 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
     const updated = SubscriptionService.reactivateUserSubscription(user.id);
     setUserSubscription({ ...updated });
-    showToast('Assinatura reativada com sucesso!', 'success');
+    showToast('Assinatura reativada com sucesso via Mercado Pago!', 'success');
   }, [user, showToast]);
 
-  // Admin: Update Plan configuration
-  const adminUpdatePlan = useCallback(
-    (updatedPlan: PlanConfig) => {
-      const updated = SubscriptionService.updatePlan(updatedPlan);
+  // Admin: Create new Plan in database
+  const adminCreatePlan = useCallback(
+    async (newPlan: PlanConfig): Promise<boolean> => {
+      const updated = await SubscriptionService.createPlan(newPlan, user?.email);
       setPlans([...updated]);
-      showToast(`Configurações do ${updatedPlan.name} salvas com sucesso!`, 'success');
+      showToast(`Plano "${newPlan.name}" criado com sucesso no banco de dados!`, 'success');
+      return true;
     },
-    [showToast]
+    [user?.email, showToast]
+  );
+
+  // Admin: Update Plan configuration in database
+  const adminUpdatePlan = useCallback(
+    async (updatedPlan: PlanConfig): Promise<boolean> => {
+      const updated = await SubscriptionService.updatePlan(updatedPlan, user?.email);
+      setPlans([...updated]);
+      showToast(`Configurações do plano "${updatedPlan.name}" salvas no banco de dados!`, 'success');
+      return true;
+    },
+    [user?.email, showToast]
+  );
+
+  // Admin: Toggle plan status
+  const adminTogglePlanStatus = useCallback(
+    async (planId: string, isActive: boolean): Promise<boolean> => {
+      const updated = await SubscriptionService.togglePlanStatus(planId, isActive, user?.email);
+      setPlans([...updated]);
+      showToast(
+        isActive
+          ? 'Plano ativado com sucesso para novas adesões.'
+          : 'Plano desativado para novas adesões (usuários existentes mantidos).',
+        'info'
+      );
+      return true;
+    },
+    [user?.email, showToast]
   );
 
   // Admin: Reset plans to default
@@ -265,6 +313,8 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     userSubscription,
     invoices,
     usageMetrics,
+    isLoadingPlans,
+    refreshPlans,
     isUpgradeModalOpen,
     upgradeModalReason,
     openUpgradeModal,
@@ -281,7 +331,9 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     checkCanAddDebt,
     checkCanAddAttachment,
     triggerUpgradeNotice: openUpgradeModal,
+    adminCreatePlan,
     adminUpdatePlan,
+    adminTogglePlanStatus,
     adminResetPlans,
     adminUpdateGatewayConfig,
     gatewayConfig,
