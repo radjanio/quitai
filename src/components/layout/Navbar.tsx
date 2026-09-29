@@ -25,6 +25,7 @@ import {
   Briefcase,
   Settings,
   Lock,
+  Heart,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
@@ -105,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({
     { id: 'investments' as AppNavView, label: 'Investimentos', icon: TrendingUp, badge: investments.length },
     { id: 'calendar' as AppNavView, label: 'Calendário', icon: Calendar },
     { id: 'reports' as AppNavView, label: 'Relatórios', icon: FileSpreadsheet },
-    { id: 'profile' as AppNavView, label: 'Perfil & Planos', icon: User },
+    { id: 'profile' as AppNavView, label: 'Perfil', icon: User },
     ...(isAdmin ? [{ id: 'admin' as AppNavView, label: 'Admin', icon: Settings }] : []),
   ];
 
@@ -299,16 +300,8 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <p className="text-xs font-bold text-slate-900 dark:text-white truncate">
                         {user.name}
                       </p>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          currentPlan.id === 'premium'
-                            ? 'bg-purple-500/15 text-purple-600 dark:text-purple-400'
-                            : currentPlan.id === 'plus'
-                            ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
-                        }`}
-                      >
-                        {currentPlan.name}
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                        100% Gratuito
                       </span>
                     </div>
                     <p className="text-[11px] text-slate-400 truncate">{user.email}</p>
@@ -331,17 +324,16 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>Gerenciar Perfil</span>
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsUserMenuOpen(false);
-                        onNavigate('plans');
-                      }}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                    <a
+                      href="https://mpago.la/2z7LTzp"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={() => setIsUserMenuOpen(false)}
+                      className="w-full px-4 py-2 text-left text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2 cursor-pointer"
                     >
-                      <Sparkles className="w-4 h-4 text-purple-500" />
-                      <span>Gerenciar Planos & Assinatura</span>
-                    </button>
+                      <Heart className="w-4 h-4 text-emerald-500 fill-current" />
+                      <span>Apoiar o QuitaÍ (Mercado Pago)</span>
+                    </a>
 
                     {isAdmin && (
                       <button

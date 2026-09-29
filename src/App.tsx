@@ -20,10 +20,7 @@ import { InvestmentFormModal } from './components/investments/InvestmentFormModa
 import { FinancialCalendarView } from './components/calendar/FinancialCalendarView';
 import { ReportsView } from './components/reports/ReportsView';
 import { UserProfileView } from './components/profile/UserProfileView';
-import { PlansView } from './components/subscription/PlansView';
 import { AdminDashboardView } from './components/admin/AdminDashboardView';
-import { UpgradeNoticeModal } from './components/subscription/UpgradeNoticeModal';
-import { CheckoutModal } from './components/subscription/CheckoutModal';
 import { LoginView } from './components/auth/LoginView';
 import { RegisterView } from './components/auth/RegisterView';
 import { SessionExpiredModal } from './components/auth/SessionExpiredModal';
@@ -45,6 +42,8 @@ function MainApp() {
     registerInstallmentPayment,
     loadDemoData,
     clearAllData,
+    theme,
+    toggleTheme,
   } = useFinance();
 
   // Auth mode switch
@@ -54,25 +53,9 @@ function MainApp() {
   const [currentView, setCurrentView] = useState<AppNavView>('dashboard');
   const [selectedDebtId, setSelectedDebtId] = useState<string | null>(null);
 
-  // Dark mode state
-  const [darkMode, setDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem('finantrack_dark_mode');
-    if (saved !== null) return saved === 'true';
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-  });
-
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-    localStorage.setItem('finantrack_dark_mode', darkMode.toString());
-  }, [darkMode]);
-
-  const handleToggleDarkMode = () => {
-    setDarkMode((prev) => !prev);
-  };
+  // Dark mode synced with single theme state
+  const darkMode = theme === 'dark';
+  const handleToggleDarkMode = toggleTheme;
 
   // Modals state
   const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
@@ -283,13 +266,14 @@ function MainApp() {
             <strong>QuitaÍ</strong> — Sistema Integrado com Supabase & Row Level Security (RLS)
           </p>
           <div className="flex items-center gap-4">
-            <button
-              type="button"
-              onClick={loadDemoData}
-              className="hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors cursor-pointer"
+            <a
+              href="https://mpago.la/2z7LTzp"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold flex items-center gap-1"
             >
-              Recarregar Exemplos
-            </button>
+              <span>Apoiar o QuitaÍ (Mercado Pago)</span>
+            </a>
             <button
               type="button"
               onClick={() => {
@@ -299,7 +283,7 @@ function MainApp() {
               }}
               className="hover:text-rose-500 transition-colors cursor-pointer"
             >
-              Resetar Tudo
+              Resetar Meus Dados
             </button>
           </div>
         </div>
@@ -338,10 +322,6 @@ function MainApp() {
         debt={quickPayState.debt}
         onConfirmPayment={handleConfirmQuickPay}
       />
-
-      {/* Subscription Limit Enforcer & Checkout Modals */}
-      <UpgradeNoticeModal onOpenPlans={() => setCurrentView('plans')} />
-      <CheckoutModal />
 
       {/* Session Expired & Toast Feedback */}
       <SessionExpiredModal />

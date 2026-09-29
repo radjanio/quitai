@@ -1,6 +1,6 @@
 /**
  * QuitaÍ — Painel de Administração e Gestão de Assinaturas
- * Permite cadastrar, editar, ativar/desativar planos, gerenciar usuários, assinaturas e webhooks Mercado Pago
+ * Permite cadastrar, editar, ativar/desativar planos, gerenciar usuários, assinaturas e webhooks
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
@@ -60,7 +60,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
   } = useSubscription();
   const { showToast } = useFinance();
 
-  const [activeTab, setActiveTab] = useState<'plans' | 'users' | 'subscriptions' | 'mercadopago'>('plans');
+  const [activeTab, setActiveTab] = useState<'plans' | 'users' | 'subscriptions' | 'webhooks'>('plans');
 
   // Plan editing & creation state
   const [selectedPlanId, setSelectedPlanId] = useState<string>(plans[0]?.id || 'plus');
@@ -292,7 +292,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
               Painel Administrativo QuitaÍ
             </span>
             <span className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full font-semibold">
-              Mercado Pago Integrado
+              Auditoria Integrada
             </span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white mt-1">
@@ -364,15 +364,15 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
         </button>
 
         <button
-          onClick={() => setActiveTab('mercadopago')}
+          onClick={() => setActiveTab('webhooks')}
           className={`py-2 px-4 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
-            activeTab === 'mercadopago'
+            activeTab === 'webhooks'
               ? 'bg-purple-600 text-white shadow-sm'
               : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
           }`}
         >
           <Activity className="w-4 h-4" />
-          Mercado Pago & Logs ({adminWebhookLogs.length})
+          Webhooks & Logs ({adminWebhookLogs.length})
         </button>
       </div>
 
@@ -388,7 +388,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
                 Planos Cadastrados no Banco de Dados
               </h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Crie novos planos, edite preços, altere recursos e associe identificadores do Mercado Pago sem alterar o código.
+                Crie novos planos, edite preços, altere recursos e associe identificadores sem alterar o código.
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -509,7 +509,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
 
                   <div>
                     <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                      ID Plano Mercado Pago (Opcional)
+                      ID Externo do Plano (Opcional)
                     </label>
                     <input
                       type="text"
@@ -680,21 +680,21 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
                 </div>
               </div>
 
-              {/* Mercado Pago & Descrição */}
+              {/* Identificador Externo & Descrição */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-1">
-                    Identificador no Mercado Pago (Preapproval / Plan ID)
+                    Identificador Externo (Plan ID)
                   </label>
                   <input
                     type="text"
                     value={formData.mercadoPagoPlanId || ''}
-                    placeholder="ex: 2c93808479..."
+                    placeholder="ex: PLAN_123..."
                     onChange={(e) => setFormData({ ...formData, mercadoPagoPlanId: e.target.value })}
                     className="w-full text-xs p-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono"
                   />
                   <p className="text-[10px] text-slate-400 mt-1">
-                    Utilizado para associar com o plano de assinatura recorrente no Mercado Pago.
+                    Utilizado para associar com o plano de assinatura no gateway.
                   </p>
                 </div>
 
@@ -1058,7 +1058,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
             <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
                 <FileText className="w-4 h-4 text-purple-500" />
-                Histórico Consolidado de Pagamentos (Mercado Pago)
+                Histórico Consolidado de Pagamentos
               </h3>
               <span className="text-[11px] text-slate-500">
                 Os dados financeiros nunca são excluídos após downgrades ou cancelamentos.
@@ -1131,20 +1131,20 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
       )}
 
       {/* ========================================================= */}
-      {/* TAB 4: MERCADO PAGO, WEBHOOKS & AUDITORIA */}
+      {/* TAB 4: WEBHOOKS & AUDITORIA */}
       {/* ========================================================= */}
-      {activeTab === 'mercadopago' && (
+      {activeTab === 'webhooks' && (
         <div className="space-y-8">
-          {/* Status do Gateway Mercado Pago */}
+          {/* Status do Gateway */}
           <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center font-black">
-                  MP
+                  GW
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    Integração Oficial com Mercado Pago
+                    Integração de Webhooks & Gateway
                   </h3>
                   <p className="text-xs text-slate-500">
                     Credenciais seguras gerenciadas exclusivamente pelo servidor backend.
@@ -1172,13 +1172,13 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
                 <span className="text-slate-400 block mb-1">Webhook URL Oficial:</span>
                 <span className="font-mono text-purple-600 dark:text-purple-400 font-semibold break-all">
-                  /api/webhooks/mercadopago
+                  /api/webhooks/gateway
                 </span>
               </div>
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
-                <span className="text-slate-400 block mb-1">Chave Pública Mercado Pago:</span>
+                <span className="text-slate-400 block mb-1">Chave Pública:</span>
                 <span className="font-mono text-slate-700 dark:text-slate-300">
-                  {gatewayStatus?.publicKeyMasked || 'APP_USR-***'}
+                  {gatewayStatus?.publicKeyMasked || 'PK_LIVE_***'}
                 </span>
               </div>
               <div className="p-3 bg-slate-50 dark:bg-slate-800/40 rounded-xl">
@@ -1197,7 +1197,7 @@ export const AdminDashboardView: React.FC<AdminDashboardViewProps> = ({ onBackTo
                 <Activity className="w-4 h-4 text-sky-500" />
                 Registros de Notificações Recebidas (Webhook Logs)
               </h3>
-              <span className="text-[11px] text-slate-500">Últimos eventos do Mercado Pago</span>
+              <span className="text-[11px] text-slate-500">Últimos eventos registrados</span>
             </div>
 
             <div className="overflow-x-auto">

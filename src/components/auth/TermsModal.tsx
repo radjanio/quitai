@@ -40,49 +40,76 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose, onAccep
         <div className="flex-1 overflow-y-auto p-6 space-y-5 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
           <section className="space-y-2">
             <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <Lock className="w-4 h-4 text-emerald-500" />
-              1. Privacidade e Isolamento Estrito de Dados
+              <ShieldCheck className="w-4 h-4 text-emerald-500" />
+              1. Identificação do Controlador de Dados & Conformidade LGPD
             </h4>
             <p>
-              O <strong>QuitaÍ</strong> garante que todos os dados cadastrados (como contratos de dívidas, financiamentos,
-              valores contratados, cronogramas de parcelas, comprovantes bancários e anexos) são estritamente isolados
-              por conta de usuário. Nenhum outro usuário da plataforma possui autorização técnica ou acesso para visualizar,
-              consultar ou modificar as informações financeiras de terceiros.
+              O <strong>QuitaÍ — Gestão Inteligente de Dívidas</strong> atua como Controlador de Dados Pessoais nos termos
+              da Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018). O tratamento de suas informações cadastrais e
+              financeiras fundamenta-se na execução de contrato (Art. 7º, V) e no legítimo interesse exclusivo do titular (Art. 7º, IX).
             </p>
           </section>
 
           <section className="space-y-2">
             <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <FileText className="w-4 h-4 text-emerald-500" />
-              2. Finalidade e Uso da Plataforma
+              2. Dados Pessoais e Financeiros Coletados
             </h4>
             <p>
-              A aplicação destina-se exclusivamente ao gerenciamento financeiro pessoal ou empresarial de contratos de
-              longo prazo (terrenos, imóveis, veículos, empréstimos e parcelamentos em geral), oferecendo simuladores,
-              cálculo de amortizações e registro de comprovantes.
+              Para a plena operação da plataforma, coletamos estritamente os dados inseridos por você:
+            </p>
+            <ul className="list-disc pl-5 space-y-1 text-xs text-slate-600 dark:text-slate-400">
+              <li><strong>Dados de Identificação:</strong> Nome completo, endereço de e-mail e credencial criptografada (hash com salt);</li>
+              <li><strong>Dados Financeiros e Contratuais:</strong> Títulos de dívidas, credores, número de contratos, valores financiados, parcelas, datas de vencimento, pagamentos e amortizações, receitas, despesas e posições de investimentos;</li>
+              <li><strong>Comprovantes e Documentos:</strong> Arquivos, recibos e notas fiscais anexados voluntariamente para comprovação e controle pessoal.</li>
+            </ul>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <Lock className="w-4 h-4 text-emerald-500" />
+              3. Armazenamento Seguro, Criptografia e Row Level Security (RLS)
+            </h4>
+            <p>
+              Seus registros são armazenados em infraestrutura de banco de dados <strong>PostgreSQL Supabase</strong> com
+              criptografia de ponta a ponta: em trânsito (protocolo TLS 1.3 / HTTPS) e em repouso (criptografia AES-256).
+              A integridade e o sigilo são blindados no próprio banco por políticas de <strong>Row Level Security (RLS)</strong>,
+              garantindo que somente a chave da sua sessão autenticada possui permissão técnica para leitura, inserção, alteração ou exclusão dos registros.
             </p>
           </section>
 
           <section className="space-y-2">
             <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-emerald-500" />
-              3. Segurança e Criptografia
+              4. Não Compartilhamento e Sigilo Absoluto
             </h4>
             <p>
-              As senhas são processadas por meio de algoritmos de dispersão criptográfica (SHA-256 com salt) antes de qualquer
-              armazenamento. Suas credenciais de acesso nunca são salvas em texto legível.
+              O QuitaÍ <strong>nunca comercializa, aluga, cede ou compartilha</strong> seus dados financeiros com birôs de crédito
+              (como Serasa ou SPC), instituições financeiras terceiras ou redes de publicidade. Seus dados pertencem exclusivamente a você.
             </p>
           </section>
 
           <section className="space-y-2">
             <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-              4. Seus Direitos e Exclusão Total
+              5. Seus Direitos e Exclusão Total em Cascata (Art. 18 LGPD)
             </h4>
             <p>
-              Você tem total autonomia sobre os seus dados. A qualquer momento, na tela de perfil, é possível solicitar a
-              exclusão definitiva de sua conta, momento em que todo o histórico financeiro, dívidas, parcelas e anexos
-              vinculados ao seu identificador são expurgados de forma definitiva e irrecuperável.
+              Como titular dos dados, você pode a qualquer momento: (a) acessar todos os seus dados; (b) retificar informações incorretas;
+              (c) exportar backup completo em formato padronizado JSON; e (d) exercer o <strong>direito à eliminação definitiva</strong> diretamente
+              no painel de Perfil. Ao confirmar a exclusão, todos os seus contratos, parcelas, recibos, histórico e dados de conta são
+              permanentemente expurgados em cascata de nossos servidores e armazenamentos locais de forma irreversível.
+            </p>
+          </section>
+
+          <section className="space-y-2">
+            <h4 className="text-base font-semibold text-slate-900 dark:text-slate-100 flex items-center gap-2">
+              <FileText className="w-4 h-4 text-emerald-500" />
+              6. Canal de Atendimento do Encarregado de Dados (DPO)
+            </h4>
+            <p>
+              Para dúvidas, solicitações ou exercício de direitos de titular previstos na LGPD, entre em contato diretamente
+              com nosso Encarregado de Proteção de Dados pelo e-mail: <strong className="text-emerald-600 dark:text-emerald-400">privacidade@quitai.com.br</strong> ou <strong className="text-emerald-600 dark:text-emerald-400">radjaniokk@gmail.com</strong>.
             </p>
           </section>
         </div>

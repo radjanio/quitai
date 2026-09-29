@@ -298,47 +298,7 @@ alter table public.investment_transactions enable row level security;
 create policy "RLS inv_tx select" on public.investment_transactions for select using (auth.uid() = user_id);
 create policy "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
 create policy "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
-
--- 12. Assinaturas de Planos (subscriptions)
-create table if not exists public.subscriptions (
-  id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  plan_id text not null default 'gratis',
-  status text not null default 'active',
-  billing_cycle text not null default 'monthly',
-  current_period_start timestamp with time zone default now(),
-  current_period_end timestamp with time zone default (now() + interval '30 days'),
-  cancel_at_period_end boolean default false,
-  payment_method text default 'pix',
-  created_at timestamp with time zone default now(),
-  updated_at timestamp with time zone default now()
-);
-
-alter table public.subscriptions enable row level security;
-create policy "RLS subscriptions select" on public.subscriptions for select using (auth.uid() = user_id);
-create policy "RLS subscriptions insert" on public.subscriptions for insert with check (auth.uid() = user_id);
-create policy "RLS subscriptions update" on public.subscriptions for update using (auth.uid() = user_id);
-create policy "RLS subscriptions delete" on public.subscriptions for delete using (auth.uid() = user_id);
-
--- 13. Faturas e Recibos de Pagamento (invoices)
-create table if not exists public.invoices (
-  id text primary key,
-  receipt_number text not null,
-  user_id uuid not null references auth.users(id) on delete cascade,
-  plan_id text not null,
-  plan_name text not null,
-  billing_cycle text not null default 'monthly',
-  amount_cents bigint not null,
-  status text not null default 'paid',
-  payment_method text not null default 'pix',
-  paid_at timestamp with time zone default now(),
-  created_at timestamp with time zone default now()
-);
-
-alter table public.invoices enable row level security;
-create policy "RLS invoices select" on public.invoices for select using (auth.uid() = user_id);
-create policy "RLS invoices insert" on public.invoices for insert with check (auth.uid() = user_id);
-create policy "RLS invoices delete" on public.invoices for delete using (auth.uid() = user_id);
+create index if not exists idx_inv_tx_user_inv on public.investment_transactions(user_id, investment_id);
 `;
 
   const handleCopy = () => {

@@ -281,3 +281,97 @@ create policy "Usuários podem remover regras de reajuste"
   using (auth.uid() = user_id);
 
 create index if not exists idx_adjustment_rules_user_debt on public.debt_adjustment_rules(user_id, debt_id);
+
+-- 9. Tabela de Entradas de Dinheiro / Receitas (incomes)
+create table if not exists public.incomes (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  description text not null,
+  amount_cents bigint not null,
+  category text not null default 'salario',
+  flow_type text not null default 'receita',
+  date date not null,
+  account_or_origin text not null default 'Conta Principal',
+  is_recurring boolean not null default false,
+  recurrence_frequency text,
+  notes text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table public.incomes enable row level security;
+create policy "RLS incomes select" on public.incomes for select using (auth.uid() = user_id);
+create policy "RLS incomes insert" on public.incomes for insert with check (auth.uid() = user_id);
+create policy "RLS incomes update" on public.incomes for update using (auth.uid() = user_id);
+create policy "RLS incomes delete" on public.incomes for delete using (auth.uid() = user_id);
+create index if not exists idx_incomes_user_date on public.incomes(user_id, date);
+
+-- 10. Tabela de Despesas Financeiras (expenses)
+create table if not exists public.expenses (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  description text not null,
+  amount_cents bigint not null,
+  category text not null default 'outros',
+  date date not null,
+  payment_method text not null default 'pix',
+  account text not null default 'Conta Corrente',
+  is_fixed boolean not null default false,
+  is_recurring boolean not null default false,
+  recurrence_frequency text,
+  linked_debt_payment_id text,
+  notes text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table public.expenses enable row level security;
+create policy "RLS expenses select" on public.expenses for select using (auth.uid() = user_id);
+create policy "RLS expenses insert" on public.expenses for insert with check (auth.uid() = user_id);
+create policy "RLS expenses update" on public.expenses for update using (auth.uid() = user_id);
+create policy "RLS expenses delete" on public.expenses for delete using (auth.uid() = user_id);
+create index if not exists idx_expenses_user_date on public.expenses(user_id, date);
+
+-- 11. Tabela de Investimentos e Ativos (investments)
+create table if not exists public.investments (
+  id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  type text not null default 'renda_fixa',
+  institution text not null,
+  initial_amount_cents bigint not null default 0,
+  current_amount_cents bigint not null default 0,
+  total_invested_cents bigint not null default 0,
+  total_yield_cents bigint not null default 0,
+  application_date date not null,
+  notes text,
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
+
+alter table public.investments enable row level security;
+create policy "RLS investments select" on public.investments for select using (auth.uid() = user_id);
+create policy "RLS investments insert" on public.investments for insert with check (auth.uid() = user_id);
+create policy "RLS investments update" on public.investments for update using (auth.uid() = user_id);
+create policy "RLS investments delete" on public.investments for delete using (auth.uid() = user_id);
+create index if not exists idx_investments_user on public.investments(user_id);
+
+-- 12. Tabela de Movimentações de Investimento (investment_transactions)
+create table if not exists public.investment_transactions (
+  id text primary key,
+  investment_id text not null references public.investments(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade,
+  type text not null default 'aporte',
+  amount_cents bigint not null,
+  date date not null,
+  notes text,
+  created_at timestamp with time zone default now()
+);
+
+alter table public.investment_transactions enable row level security;
+create policy "RLS inv_tx select" on public.investment_transactions for select using (auth.uid() = user_id);
+create policy "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
+create policy "RLS inv_tx update" on public.investment_transactions for update using (auth.uid() = user_id);
+create policy "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
+create index if not exists idx_inv_tx_user_inv on public.investment_transactions(user_id, investment_id);
+

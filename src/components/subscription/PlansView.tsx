@@ -1,6 +1,6 @@
 /**
- * QuitaÍ — Tela de Planos e Assinaturas Dinâmicos
- * Carrega planos diretamente do Banco de Dados e integra com Mercado Pago
+ * QuitaÍ — Tela de Planos e Assinaturas
+ * Planos cadastrados e controle de recursos
  */
 
 import React, { useState } from 'react';
@@ -48,15 +48,15 @@ export const PlansView: React.FC<PlansViewProps> = ({ onBackToDashboard, onOpenA
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in duration-300">
       {/* Top Header */}
       <div className="text-center max-w-3xl mx-auto mb-10">
-        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-sky-500/10 text-sky-600 dark:text-sky-400 text-xs font-bold uppercase tracking-wider mb-3">
-          <ShieldCheck className="w-4 h-4 text-sky-500" />
-          Provedor Oficial: Mercado Pago
+        <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-bold uppercase tracking-wider mb-3">
+          <ShieldCheck className="w-4 h-4 text-emerald-500" />
+          Acesso Seguro e Criptografado
         </div>
         <h1 className="text-3xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight">
           Acelere sua liberdade financeira com o QuitaÍ
         </h1>
         <p className="mt-3 text-base text-slate-600 dark:text-slate-300">
-          Planos cadastrados no banco de dados com segurança total. Contratação instantânea via Mercado Pago (PIX e Cartão) sem fidelidade.
+          Controle financeiro completo com segurança total e sem fidelidade.
         </p>
 
         {isAdmin && onOpenAdmin && (
@@ -183,7 +183,7 @@ export const PlansView: React.FC<PlansViewProps> = ({ onBackToDashboard, onOpenA
                     ? 'Gratuito para sempre'
                     : billingCycle === 'annual'
                     ? `${formatCurrencyCents(plan.annualPriceCents)} cobrado anualmente`
-                    : 'Cobrado mensalmente via Mercado Pago'}
+                    : `${formatCurrencyCents(plan.monthlyPriceCents)} cobrado mensalmente`}
                 </p>
               </div>
 
@@ -205,7 +205,7 @@ export const PlansView: React.FC<PlansViewProps> = ({ onBackToDashboard, onOpenA
                   'Mudar para Grátis'
                 ) : (
                   <>
-                    Contratar com Mercado Pago
+                    Selecionar Plano
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
@@ -229,7 +229,7 @@ export const PlansView: React.FC<PlansViewProps> = ({ onBackToDashboard, onOpenA
         })}
       </div>
 
-      {/* Selo de Garantia e Parceria Mercado Pago */}
+      {/* Selo de Garantia e Segurança */}
       <div className="bg-gradient-to-r from-sky-50 via-slate-50 to-teal-50 dark:from-slate-900 dark:via-sky-950/20 dark:to-slate-900 border border-sky-200 dark:border-sky-900/40 rounded-3xl p-6 sm:p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm mb-16">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-sky-500/10 text-sky-600 dark:text-sky-400 flex items-center justify-center shrink-0">
@@ -237,10 +237,10 @@ export const PlansView: React.FC<PlansViewProps> = ({ onBackToDashboard, onOpenA
           </div>
           <div>
             <h4 className="text-base font-bold text-slate-900 dark:text-white">
-              Pagamentos Processados com Segurança pelo Mercado Pago
+              Pagamentos Processados com Segurança
             </h4>
             <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-              Seus dados financeiros e credenciais de pagamento nunca são armazenados pelo QuitaÍ. A aprovação é imediata via PIX e Cartão com liberação instantânea dos recursos do seu plano.
+              Seus dados financeiros e credenciais de pagamento nunca são expostos. A liberação dos recursos do seu plano é instantânea.
             </p>
           </div>
         </div>

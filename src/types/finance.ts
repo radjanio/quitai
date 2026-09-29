@@ -128,6 +128,7 @@ export interface PaymentRecord {
 
 export interface Attachment {
   id: string;
+  userId?: string;
   debtId?: string;
   installmentId?: string;
   paymentId?: string;

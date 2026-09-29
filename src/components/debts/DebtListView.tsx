@@ -93,17 +93,6 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
         </div>
 
         <div className="flex items-center gap-2">
-          {debts.length === 0 && (
-            <button
-              type="button"
-              onClick={loadDemoData}
-              className="px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer flex items-center gap-1.5"
-            >
-              <Sparkles className="w-4 h-4 text-amber-500" />
-              Carregar Dados de Exemplo
-            </button>
-          )}
-
           <button
             type="button"
             onClick={onOpenCreateDebt}
@@ -211,15 +200,6 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
             >
               Cadastrar Nova Dívida
             </button>
-            {debts.length === 0 && (
-              <button
-                type="button"
-                onClick={loadDemoData}
-                className="px-4 py-2 rounded-xl border border-slate-300 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
-              >
-                Usar Dados de Exemplo
-              </button>
-            )}
           </div>
         </div>
       ) : (

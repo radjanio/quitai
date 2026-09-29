@@ -42,11 +42,6 @@ export const DebtCard: React.FC<DebtCardProps> = ({
           <div className="flex items-center gap-1.5 flex-wrap">
             <Badge type="category" value={debt.category} />
             <Badge type="debtStatus" value={debt.status} />
-            {debt.isDemo && (
-              <span className="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                EXEMPLO
-              </span>
-            )}
           </div>
           <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-emerald-500 transition-colors" />
         </div>

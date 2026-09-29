@@ -9,7 +9,6 @@ import {
   TrendingDown,
   ShieldCheck,
   Sparkles,
-  Zap,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
@@ -52,20 +51,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister, onSucc
       onSuccess();
     } catch (err: any) {
       setError(err?.message || 'Falha na autenticação. Verifique os dados digitados.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  // Instant demo user login shortcut
-  const handleQuickDemoLogin = async () => {
-    setError(null);
-    setIsSubmitting(true);
-    try {
-      await login('demo@quitai.com.br', 'Senha@123', true);
-      onSuccess();
-    } catch (err: any) {
-      setError(err?.message || 'Falha ao entrar com conta demo.');
     } finally {
       setIsSubmitting(false);
     }
@@ -194,19 +179,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister, onSucc
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
-
-          {/* Quick Demo Access Button */}
-          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-            <button
-              type="button"
-              onClick={handleQuickDemoLogin}
-              disabled={isSubmitting}
-              className="w-full py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center justify-center gap-2 transition-colors border border-slate-200 dark:border-slate-700/60 cursor-pointer"
-            >
-              <Zap className="w-3.5 h-3.5 text-amber-500" />
-              <span>Acesso Rápido de Demonstração (Demo)</span>
-            </button>
-          </div>
 
           {/* Switch to Register */}
           <div className="mt-5 pt-4 border-t border-slate-100 dark:border-slate-800 text-center">

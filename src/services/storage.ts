@@ -20,26 +20,26 @@ import {
 import { generateInstallmentDueDates, getTodayIso, isOverdue, getDaysDifference } from '../utils/dates';
 
 const STORAGE_KEYS = {
-  DEBTS: 'finantrack_debts',
-  INSTALLMENTS: 'finantrack_installments',
-  PAYMENTS: 'finantrack_payments',
-  ATTACHMENTS: 'finantrack_attachments',
-  HISTORY: 'finantrack_history',
-  ADJUSTMENT_RULES: 'finantrack_adjustment_rules',
-  INCOMES: 'finantrack_incomes',
-  EXPENSES: 'finantrack_expenses',
-  INVESTMENTS: 'finantrack_investments',
-  INVESTMENT_TRANSACTIONS: 'finantrack_investment_transactions',
-  USER_PROFILE: 'finantrack_user_profile',
-  HAS_DEMO: 'finantrack_has_demo',
-  SETTINGS: 'finantrack_settings',
+  DEBTS: 'quitai_debts',
+  INSTALLMENTS: 'quitai_installments',
+  PAYMENTS: 'quitai_payments',
+  ATTACHMENTS: 'quitai_attachments',
+  HISTORY: 'quitai_history',
+  ADJUSTMENT_RULES: 'quitai_adjustment_rules',
+  INCOMES: 'quitai_incomes',
+  EXPENSES: 'quitai_expenses',
+  INVESTMENTS: 'quitai_investments',
+  INVESTMENT_TRANSACTIONS: 'quitai_investment_transactions',
+  USER_PROFILE: 'quitai_user_profile',
+  HAS_DEMO: 'quitai_has_demo',
+  SETTINGS: 'quitai_settings',
 };
 
 // Default User Profile
 export const DEFAULT_USER: UserProfile = {
   id: 'usr_default_01',
-  name: 'Investidor FinanTrack',
-  email: 'usuario@finantrack.com.br',
+  name: 'Usuário QuitaÍ',
+  email: 'usuario@quitai.com.br',
   createdAt: '2026-01-01T00:00:00Z',
 };
 
@@ -63,7 +63,7 @@ function setLocalItem<T>(key: string, value: T): void {
 }
 
 // IndexedDB setup for attachments to avoid LocalStorage quota limits
-const IDB_NAME = 'FinanTrackDB';
+const IDB_NAME = 'QuitaiDB';
 const IDB_VERSION = 1;
 const IDB_STORE_ATTACHMENTS = 'attachment_blobs';
 
@@ -932,7 +932,20 @@ export const StorageService = {
     const remainingDebts = allDebts.filter((d) => d.userId !== userId);
     const remainingInstallments = this.getInstallments().filter((i) => !userDebtIds.has(i.debtId));
     const remainingPayments = this.getPayments().filter((p) => !userDebtIds.has(p.debtId));
-    const remainingAttachments = this.getAttachments().filter((a) => a.debtId ? !userDebtIds.has(a.debtId) : true);
+    
+    // Clean attachments and delete their blobs from IndexedDB
+    const allAttachments = this.getAttachments();
+    const attachmentsToDelete = allAttachments.filter(
+      (a) => (a.userId && a.userId === userId) || (a.debtId ? userDebtIds.has(a.debtId) : false)
+    );
+    attachmentsToDelete.forEach((att) => {
+      deleteAttachmentData(att.id).catch(() => {});
+    });
+
+    const remainingAttachments = allAttachments.filter(
+      (a) => !((a.userId && a.userId === userId) || (a.debtId ? userDebtIds.has(a.debtId) : false))
+    );
+
     const remainingHistory = this.getHistory().filter((h) => !userDebtIds.has(h.debtId));
     const remainingRules = this.getAdjustmentRules().filter((r) => !userDebtIds.has(r.debtId));
     const remainingIncomes = this.getIncomes().filter((inc) => inc.userId !== userId);

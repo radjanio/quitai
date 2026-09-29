@@ -1,6 +1,6 @@
 /**
  * QuitaÍ — Contexto de Assinaturas e Controle de Acesso
- * Fornece estado de planos sincronizados com Banco de Dados e Mercado Pago
+ * Fornece estado de planos e controle de acesso
  */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
@@ -135,53 +135,25 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     );
   }, [currentPlan, debts.length, attachments.length, totalAttachmentBytes, incomes.length, expenses.length, investments.length]);
 
-  // Feature gate checker
+  // Feature gate checker - ALL features are 100% unlocked and free
   const canAccess = useCallback(
-    (feature: keyof PlanFeatureFlags): boolean => {
-      return Boolean(currentPlan.flags[feature]);
+    (_feature: keyof PlanFeatureFlags): boolean => {
+      return true;
     },
-    [currentPlan]
+    []
   );
 
-  // Check if debt limit allows adding new debt
+  // Check if debt limit allows adding new debt - Unlimited for all users
   const checkCanAddDebt = useCallback((): { allowed: boolean; message?: string } => {
-    const limit = currentPlan.limits.maxDebts;
-    if (limit === -1) return { allowed: true };
-    if (debts.length >= limit) {
-      return {
-        allowed: false,
-        message: `Você atingiu o limite de ${limit} dívidas do seu plano ${currentPlan.name}. Faça upgrade no QuitaÍ para cadastrar dívidas ilimitadas!`,
-      };
-    }
     return { allowed: true };
-  }, [currentPlan, debts.length]);
+  }, []);
 
-  // Check if attachment limit allows adding new attachment
+  // Check if attachment limit allows adding new attachment - Unlimited for all users
   const checkCanAddAttachment = useCallback(
-    (additionalSizeBytes?: number): { allowed: boolean; message?: string } => {
-      const countLimit = currentPlan.limits.maxAttachments;
-      if (countLimit !== -1 && attachments.length >= countLimit) {
-        return {
-          allowed: false,
-          message: `Você atingiu o limite de ${countLimit} anexos do plano ${currentPlan.name}. Faça upgrade no QuitaÍ para salvar documentos ilimitados!`,
-        };
-      }
-
-      if (additionalSizeBytes) {
-        const storageLimitMb = currentPlan.limits.maxStorageMb;
-        const currentBytes = attachments.reduce((sum, a) => sum + (a.fileSize || 0), 0);
-        const newTotalMb = (currentBytes + additionalSizeBytes) / (1024 * 1024);
-        if (newTotalMb > storageLimitMb) {
-          return {
-            allowed: false,
-            message: `O arquivo ultrapassa o limite de armazenamento de ${storageLimitMb}MB do seu plano ${currentPlan.name}. Faça upgrade para mais espaço!`,
-          };
-        }
-      }
-
+    (_additionalSizeBytes?: number): { allowed: boolean; message?: string } => {
       return { allowed: true };
     },
-    [currentPlan, attachments]
+    []
   );
 
   // Upgrade Modal Handlers
@@ -206,7 +178,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setCheckoutPlan(null);
   }, []);
 
-  // Confirm subscription payment (Mercado Pago / Oficial)
+  // Confirm subscription payment
   const confirmSubscription = useCallback(
     async (
       planId: PlanTier,
@@ -230,7 +202,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
       setIsUpgradeModalOpen(false);
 
       const targetPlan = plans.find((p) => p.id === planId) || SubscriptionService.getPlanById(planId);
-      showToast(`Pagamento aprovado pelo Mercado Pago! Seu plano ${targetPlan.name} está liberado.`, 'success');
+      showToast(`Pagamento aprovado! Seu plano ${targetPlan.name} está liberado.`, 'success');
       return invoice;
     },
     [user, plans, showToast]
@@ -249,7 +221,7 @@ export const SubscriptionProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!user) return;
     const updated = SubscriptionService.reactivateUserSubscription(user.id);
     setUserSubscription({ ...updated });
-    showToast('Assinatura reativada com sucesso via Mercado Pago!', 'success');
+    showToast('Assinatura reativada com sucesso!', 'success');
   }, [user, showToast]);
 
   // Admin: Create new Plan in database

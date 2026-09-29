@@ -189,11 +189,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Theme state
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
-      const saved = localStorage.getItem('finantrack_theme');
+      const saved = localStorage.getItem('quitai_theme');
       if (saved === 'dark' || saved === 'light') return saved;
       return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     } catch {
-      return 'light';
+      return 'dark';
     }
   });
 
@@ -205,7 +205,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       } else {
         document.documentElement.classList.remove('dark');
       }
-      localStorage.setItem('finantrack_theme', theme);
+      localStorage.setItem('quitai_theme', theme);
     } catch (e) {
       console.error(e);
     }
@@ -261,13 +261,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
     const allDebts = StorageService.getDebts();
     let userDebts = allDebts.filter((d) => d.userId === currentUserId);
-
-    // If demo user and has no debts yet, auto seed demo debts for them
-    if (userDebts.length === 0 && currentUserId === 'usr_demo_quitai') {
-      StorageService.loadDemoData(currentUserId);
-      const reloadedDebts = StorageService.getDebts();
-      userDebts = reloadedDebts.filter((d) => d.userId === currentUserId);
-    }
 
     const userDebtIds = new Set(userDebts.map((d) => d.id));
     const allInstallments = StorageService.getInstallments();

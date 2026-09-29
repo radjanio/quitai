@@ -539,14 +539,32 @@ export const SupabaseService = {
   },
 
   /**
-   * Cascade purge user's remote records
+   * Complete cascade purge of all user's remote records from every table
    */
   async purgeUserData(userId: string): Promise<boolean> {
     try {
+      // 1. Delete dependent child records first
+      await Promise.allSettled([
+        supabase.from('investment_transactions').delete().eq('user_id', userId),
+        supabase.from('investments').delete().eq('user_id', userId),
+        supabase.from('expenses').delete().eq('user_id', userId),
+        supabase.from('incomes').delete().eq('user_id', userId),
+        supabase.from('attachments').delete().eq('user_id', userId),
+        supabase.from('payment_records').delete().eq('user_id', userId),
+        supabase.from('installments').delete().eq('user_id', userId),
+        supabase.from('history_events').delete().eq('user_id', userId),
+        supabase.from('debt_adjustment_rules').delete().eq('user_id', userId),
+      ]);
+
+      // 2. Delete parent debts
       await supabase.from('debts').delete().eq('user_id', userId);
+
+      // 3. Delete user profile
+      await supabase.from('profiles').delete().eq('id', userId);
+
       return true;
     } catch (err) {
-      console.warn('Supabase purge error:', err);
+      console.warn('Supabase complete purge error:', err);
       return false;
     }
   },

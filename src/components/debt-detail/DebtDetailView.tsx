@@ -152,11 +152,6 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
               </h1>
               <Badge type="category" value={debt.category} />
               <Badge type="debtStatus" value={debt.status} />
-              {debt.isDemo && (
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300 border border-amber-300">
-                  EXEMPLO
-                </span>
-              )}
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               Credor: <strong>{debt.creditor}</strong>

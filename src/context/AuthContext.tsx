@@ -334,14 +334,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.updateUser({ data: { name: newName } }).catch(() => {});
   }, [user]);
 
-  // Change password
+  // Change password with current password verification
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     if (!user) throw new Error('Nenhum usuário autenticado.');
-    await AuthStorageService.updatePassword(user.id, currentPassword, newPassword);
+
+    let validatedWithSupabase = false;
+    try {
+      const { error: verifyErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: currentPassword,
+      });
+
+      if (verifyErr) {
+        if (
+          verifyErr.message.includes('Invalid login credentials') ||
+          verifyErr.message.includes('invalid_credentials')
+        ) {
+          throw new Error('A senha atual informada está incorreta.');
+        }
+      } else {
+        validatedWithSupabase = true;
+      }
+    } catch (e: any) {
+      if (e.message === 'A senha atual informada está incorreta.') throw e;
+    }
+
+    // Validate with local auth service
+    try {
+      await AuthStorageService.updatePassword(user.id, currentPassword, newPassword);
+    } catch (err: any) {
+      if (!validatedWithSupabase) {
+        throw new Error(err?.message || 'A senha atual informada está incorreta.');
+      }
+    }
+
+    // Update password in Supabase
     try {
       await supabase.auth.updateUser({ password: newPassword });
     } catch (e) {
-      // ignore
+      console.warn('Supabase password update note:', e);
     }
   }, [user]);
 
