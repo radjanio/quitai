@@ -25,7 +25,6 @@ import {
   Briefcase,
   Settings,
   Lock,
-  Heart,
 } from 'lucide-react';
 import { useFinance } from '../../context/FinanceContext';
 import { useAuth } from '../../context/AuthContext';
@@ -137,23 +136,22 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Desktop Nav Links */}
-        <nav className="hidden lg:flex items-center gap-1">
+        <nav className="hidden lg:flex items-center gap-0.5 xl:gap-1 flex-wrap">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive =
-              currentView === item.id || (item.id === 'profile' && currentView === 'plans');
+            const isActive = currentView === item.id;
             return (
               <button
                 key={item.id}
                 type="button"
                 onClick={() => onNavigate(item.id)}
-                className={`px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-2.5 xl:px-3 py-1.5 xl:py-2 rounded-xl text-xs font-bold flex items-center gap-1 xl:gap-1.5 transition-all cursor-pointer whitespace-nowrap ${
                   isActive
                     ? 'bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-sm'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5 xl:w-4 xl:h-4" />
                 <span>{item.label}</span>
                 {item.badge !== undefined && item.badge > 0 && (
                   <span
@@ -324,17 +322,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                       <span>Gerenciar Perfil</span>
                     </button>
 
-                    <a
-                      href="https://mpago.la/2z7LTzp"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => setIsUserMenuOpen(false)}
-                      className="w-full px-4 py-2 text-left text-xs font-medium text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30 flex items-center gap-2 cursor-pointer"
-                    >
-                      <Heart className="w-4 h-4 text-emerald-500 fill-current" />
-                      <span>Apoiar o QuitaÍ (Mercado Pago)</span>
-                    </a>
-
                     {isAdmin && (
                       <button
                         type="button"
@@ -420,7 +407,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           type="button"
           onClick={() => onNavigate('profile')}
           className={`flex flex-col items-center gap-0.5 text-[10px] font-bold py-1 px-2.5 rounded-lg ${
-            currentView === 'profile' || currentView === 'plans'
+            currentView === 'profile'
               ? 'text-emerald-600 dark:text-emerald-400'
               : 'text-slate-500 dark:text-slate-400'
           }`}

@@ -149,13 +149,15 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* Valor do Pagamento */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="payment-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Valor Efetivamente Pago (R$) *
           </label>
           <div className="relative">
             <span className="absolute left-3.5 top-2.5 text-xs font-mono text-slate-400">R$</span>
             <input
+              id="payment-amount"
               type="text"
+              inputMode="decimal"
               required
               value={amountStr}
               onChange={(e) => setAmountStr(e.target.value)}
@@ -171,10 +173,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         {/* Data e Forma de Pagamento */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label htmlFor="payment-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Data do Pagamento *
             </label>
             <input
+              id="payment-date"
               type="date"
               required
               value={paymentDate}
@@ -184,10 +187,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label htmlFor="payment-method" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               Forma de Pagamento
             </label>
             <select
+              id="payment-method"
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
               className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
@@ -205,10 +209,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* Observações */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="payment-notes" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Observações / Código de Autenticação (opcional)
           </label>
           <input
+            id="payment-notes"
             type="text"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -219,7 +224,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
         {/* Anexo de Comprovante */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="payment-receipt" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Comprovante de Pagamento (PDF ou Imagem)
           </label>
 

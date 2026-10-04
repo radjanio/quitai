@@ -11,6 +11,8 @@ import { InstallmentsTab } from './InstallmentsTab';
 import { HistoryTab } from './HistoryTab';
 import { DocumentsTab } from './DocumentsTab';
 import { AdjustmentsTab } from './AdjustmentsTab';
+import { AmortizationTab } from './AmortizationTab';
+import { SettlementModal } from './SettlementModal';
 import { PaymentModal } from './PaymentModal';
 import { EditInstallmentModal } from './EditInstallmentModal';
 import { AddAttachmentModal } from './AddAttachmentModal';
@@ -27,6 +29,8 @@ import {
   Sliders,
   Paperclip,
   Share2,
+  Sparkles,
+  Handshake,
 } from 'lucide-react';
 
 interface DebtDetailViewProps {
@@ -58,9 +62,12 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
     deleteAttachment,
     addAdjustmentRule,
     applyBatchAdjustment,
+    amortizeBackwards,
+    payMultipleInstallments,
+    settleDebtWithDiscount,
   } = useFinance();
 
-  const [activeTab, setActiveTab] = useState<'resumo' | 'parcelas' | 'historico' | 'documentos' | 'reajustes'>('resumo');
+  const [activeTab, setActiveTab] = useState<'resumo' | 'parcelas' | 'amortizacao' | 'historico' | 'documentos' | 'reajustes'>('resumo');
 
   // Modals state
   const [paymentModalState, setPaymentModalState] = useState<{
@@ -68,6 +75,8 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
     installment: Installment | null;
     isDownPayment: boolean;
   }>({ isOpen: false, installment: null, isDownPayment: false });
+
+  const [isSettlementModalOpen, setIsSettlementModalOpen] = useState(false);
 
   const [editInstallmentModalState, setEditInstallmentModalState] = useState<{
     isOpen: boolean;
@@ -173,6 +182,18 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
             </button>
           )}
 
+          {debt.status !== 'quitada' && (
+            <button
+              type="button"
+              onClick={() => setIsSettlementModalOpen(true)}
+              className="px-3 py-2 border border-purple-200 dark:border-purple-800 text-purple-700 dark:text-purple-300 hover:bg-purple-50 dark:hover:bg-purple-950/40 rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center gap-1.5"
+              title="Liquidar saldo devedor com acordo ou desconto à vista"
+            >
+              <Handshake className="w-4 h-4" />
+              <span className="hidden sm:inline">Quitar com Acordo</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => onEditDebt(debt)}
@@ -198,6 +219,7 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
         {[
           { id: 'resumo', label: 'Resumo Geral', icon: FileText },
           { id: 'parcelas', label: `Parcelas (${installments.length})`, icon: Clock },
+          { id: 'amortizacao', label: 'Amortização CDC', icon: Sparkles },
           { id: 'historico', label: `Histórico (${history.length})`, icon: CheckCircle2 },
           { id: 'documentos', label: `Documentos (${attachments.length})`, icon: Paperclip },
           { id: 'reajustes', label: 'Reajustes & Regras', icon: Sliders },
@@ -242,12 +264,23 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
           attachments={attachments}
           onPayInstallment={handleOpenPay}
           onPartialPayInstallment={handleOpenPay}
+          onPayMultipleInstallments={payMultipleInstallments}
           onEditInstallment={(inst) => setEditInstallmentModalState({ isOpen: true, installment: inst })}
           onUndoPayment={undoPayment}
           onAttachReceipt={(inst) => {
             setIsAddAttachmentOpen(true);
           }}
           onViewAttachment={(att) => setViewerAttachment(att)}
+        />
+      )}
+
+      {activeTab === 'amortizacao' && (
+        <AmortizationTab
+          debt={debt}
+          installments={installments}
+          onAmortize={(paidAmountCents, installmentsToPay, date, method, notes) =>
+            amortizeBackwards(debt.id, paidAmountCents, installmentsToPay, date, method, notes)
+          }
         />
       )}
 
@@ -301,6 +334,16 @@ export const DebtDetailView: React.FC<DebtDetailViewProps> = ({
         isOpen={!!viewerAttachment}
         onClose={() => setViewerAttachment(null)}
         attachment={viewerAttachment}
+      />
+
+      <SettlementModal
+        isOpen={isSettlementModalOpen}
+        debt={debt}
+        installments={installments}
+        onClose={() => setIsSettlementModalOpen(false)}
+        onSettle={(amountCents, date, method, notes) =>
+          settleDebtWithDiscount(debt.id, amountCents, date, method, notes)
+        }
       />
 
       <ConfirmDialog

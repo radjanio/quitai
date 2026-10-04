@@ -26,6 +26,7 @@ import { RegisterView } from './components/auth/RegisterView';
 import { SessionExpiredModal } from './components/auth/SessionExpiredModal';
 import { DebtFormModal } from './components/debts/DebtFormModal';
 import { PaymentModal } from './components/debt-detail/PaymentModal';
+import { CheckoutModal } from './components/subscription/CheckoutModal';
 import { ToastContainer } from './components/common/ToastContainer';
 import { Debt, Installment, PaymentMethod } from './types/finance';
 import { TrendingDown } from 'lucide-react';
@@ -266,14 +267,6 @@ function MainApp() {
             <strong>QuitaÍ</strong> — Sistema Integrado com Supabase & Row Level Security (RLS)
           </p>
           <div className="flex items-center gap-4">
-            <a
-              href="https://mpago.la/2z7LTzp"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-emerald-600 dark:text-emerald-400 hover:underline font-semibold flex items-center gap-1"
-            >
-              <span>Apoiar o QuitaÍ (Mercado Pago)</span>
-            </a>
             <button
               type="button"
               onClick={() => {
@@ -322,6 +315,8 @@ function MainApp() {
         debt={quickPayState.debt}
         onConfirmPayment={handleConfirmQuickPay}
       />
+
+      <CheckoutModal />
 
       {/* Session Expired & Toast Feedback */}
       <SessionExpiredModal />

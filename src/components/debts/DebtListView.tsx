@@ -1,21 +1,22 @@
 /**
- * DebtListView - Search, filter, sort and list all debts
+ * DebtListView - Search, filter, sort and list all debts with consolidated metrics
  */
 
 import React, { useState, useMemo } from 'react';
 import { useFinance } from '../../context/FinanceContext';
 import { Debt, Installment, DebtCategory } from '../../types/finance';
 import { DebtCard } from './DebtCard';
-import { isOverdue } from '../../utils/dates';
+import { isOverdue, formatDate } from '../../utils/dates';
+import { formatCurrency, formatPercentage } from '../../utils/currency';
 import {
   Search,
-  Filter,
   Plus,
-  ArrowUpDown,
-  Grid,
-  List,
-  Sparkles,
   Layers,
+  TrendingUp,
+  DollarSign,
+  Clock,
+  AlertTriangle,
+  CheckCircle2,
 } from 'lucide-react';
 
 interface DebtListViewProps {
@@ -29,12 +30,48 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
   onOpenCreateDebt,
   onQuickPay,
 }) => {
-  const { debts, installments, payments, loadDemoData } = useFinance();
+  const { debts, installments, payments } = useFinance();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('todos');
   const [categoryFilter, setCategoryFilter] = useState<string>('todas');
-  const [sortBy, setSortBy] = useState<'vencimento' | 'maior_valor' | 'menor_valor' | 'progresso' | 'recentes'>('vencimento');
+  const [sortBy, setSortBy] = useState<'vencimento' | 'maior_valor' | 'menor_valor' | 'recentes'>('vencimento');
+
+  // Consolidated KPIs across all debts
+  const consolidatedMetrics = useMemo(() => {
+    const totalContractedCents = debts.reduce((acc, d) => acc + d.totalAmountCents, 0);
+
+    const totalPaidCents = payments.reduce((acc, p) => acc + p.amountCents, 0);
+
+    // Sum of remaining amounts
+    const openInstallments = installments.filter((i) => i.status !== 'paga' && i.status !== 'cancelada');
+    const remainingInstallmentsCents = openInstallments.reduce(
+      (acc, i) => acc + Math.max(0, i.expectedAmountCents - (i.paidAmountCents || 0)),
+      0
+    );
+    const unpaidDownPaymentsCents = debts
+      .filter((d) => !d.downPaymentPaid && d.downPaymentCents > 0)
+      .reduce((acc, d) => acc + d.downPaymentCents, 0);
+
+    const totalRemainingCents = remainingInstallmentsCents + unpaidDownPaymentsCents;
+
+    const overdueCount = openInstallments.filter((i) => i.status === 'vencida' || isOverdue(i.dueDate, i.status)).length;
+
+    const progressPercentage =
+      totalContractedCents > 0
+        ? Math.min(100, (totalPaidCents / totalContractedCents) * 100)
+        : 0;
+
+    return {
+      totalContractedCents,
+      totalPaidCents,
+      totalRemainingCents,
+      overdueCount,
+      progressPercentage,
+      totalDebtsCount: debts.length,
+      activeDebtsCount: debts.filter((d) => d.status === 'em_andamento').length,
+    };
+  }, [debts, installments, payments]);
 
   // Filter and sort debts
   const filteredAndSortedDebts = useMemo(() => {
@@ -44,7 +81,6 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
         if (statusFilter === 'em_andamento' && debt.status !== 'em_andamento') return false;
         if (statusFilter === 'quitadas' && debt.status !== 'quitada') return false;
         if (statusFilter === 'vencidas') {
-          // Check if debt has any overdue installment
           const debtInsts = installments.filter((i) => i.debtId === debt.id);
           const hasOverdue = debtInsts.some((i) => i.status === 'vencida' || isOverdue(i.dueDate, i.status));
           if (!hasOverdue) return false;
@@ -74,10 +110,9 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
         if (sortBy === 'maior_valor') return b.totalAmountCents - a.totalAmountCents;
         if (sortBy === 'menor_valor') return a.totalAmountCents - b.totalAmountCents;
         if (sortBy === 'recentes') return b.createdAt.localeCompare(a.createdAt);
-        // Default: due date
         return a.dueDay - b.dueDay;
       });
-  }, [debts, installments, payments, statusFilter, categoryFilter, searchTerm, sortBy]);
+  }, [debts, installments, statusFilter, categoryFilter, searchTerm, sortBy]);
 
   return (
     <div className="space-y-6">
@@ -85,14 +120,14 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm">
         <div>
           <h1 className="text-xl font-bold text-slate-900 dark:text-white">
-            Suas Dívidas de Longo Prazo
+            Gestão & Amortização de Dívidas
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            Acompanhe terrenos, veículos, imóveis e financiamentos em um só lugar
+            Controle de contratos, parcelas, amortização extraordinária (CDC) e integração Supabase
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <button
             type="button"
             onClick={onOpenCreateDebt}
@@ -103,6 +138,71 @@ export const DebtListView: React.FC<DebtListViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Top Consolidated KPI Banner */}
+      {debts.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Total Contratado */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <span>Total Contratado</span>
+              <DollarSign className="w-4 h-4 text-slate-400" />
+            </div>
+            <div className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+              {formatCurrency(consolidatedMetrics.totalContractedCents)}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {consolidatedMetrics.totalDebtsCount} dívida(s) cadastrada(s)
+            </div>
+          </div>
+
+          {/* Total Pago / Amortizado */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-100 dark:border-emerald-950/60 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-emerald-600 dark:text-emerald-400 mb-1">
+              <span>Total Já Pago / Amortizado</span>
+              <CheckCircle2 className="w-4 h-4" />
+            </div>
+            <div className="text-xl font-bold font-mono text-emerald-600 dark:text-emerald-400">
+              {formatCurrency(consolidatedMetrics.totalPaidCents)}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {formatPercentage(consolidatedMetrics.progressPercentage)} do total contratado
+            </div>
+          </div>
+
+          {/* Saldo Devedor Restante */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-amber-100 dark:border-amber-950/60 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-amber-600 dark:text-amber-400 mb-1">
+              <span>Saldo Devedor Restante</span>
+              <Clock className="w-4 h-4" />
+            </div>
+            <div className="text-xl font-bold font-mono text-amber-600 dark:text-amber-400">
+              {formatCurrency(consolidatedMetrics.totalRemainingCents)}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {consolidatedMetrics.activeDebtsCount} contrato(s) em andamento
+            </div>
+          </div>
+
+          {/* Status / Alertas */}
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-800 shadow-sm">
+            <div className="flex items-center justify-between text-xs text-slate-500 mb-1">
+              <span>Situação das Parcelas</span>
+              <AlertTriangle className={`w-4 h-4 ${consolidatedMetrics.overdueCount > 0 ? 'text-rose-500' : 'text-emerald-500'}`} />
+            </div>
+            <div className={`text-xl font-bold font-mono ${consolidatedMetrics.overdueCount > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              {consolidatedMetrics.overdueCount > 0
+                ? `${consolidatedMetrics.overdueCount} em atraso`
+                : 'Tudo em dia!'}
+            </div>
+            <div className="text-[11px] text-slate-500 mt-1">
+              {consolidatedMetrics.overdueCount > 0
+                ? 'Atenção aos juros de mora'
+                : 'Nenhuma parcela vencida'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Filter and Search Bar */}
       <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-sm space-y-3">

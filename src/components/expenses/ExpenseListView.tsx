@@ -50,7 +50,7 @@ const PAYMENT_METHOD_NAMES: Record<PaymentMethod, string> = {
 };
 
 export const ExpenseListView: React.FC = () => {
-  const { expenses, addExpense, updateExpense, deleteExpense } = useFinance();
+  const { expenses, payments, addExpense, updateExpense, deleteExpense } = useFinance();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('todas');
   const [selectedMethod, setSelectedMethod] = useState<string>('todos');
@@ -90,10 +90,16 @@ export const ExpenseListView: React.FC = () => {
       .filter((e) => !e.isFixed)
       .reduce((sum, e) => sum + e.amountCents, 0);
 
-    // Debt amortization payments recorded as expenses
-    const monthDebtPaymentCents = monthExpenses
+    // Debt amortization payments (payments made on debts + expenses marked as dividas)
+    const debtPaymentsCents = payments
+      .filter((p) => p.paymentDate.startsWith(currentYearMonth))
+      .reduce((sum, p) => sum + p.amountCents, 0);
+
+    const debtExpensesCents = monthExpenses
       .filter((e) => e.category === 'dividas' || e.linkedDebtPaymentId)
       .reduce((sum, e) => sum + e.amountCents, 0);
+
+    const monthDebtPaymentCents = debtPaymentsCents > 0 ? debtPaymentsCents : debtExpensesCents;
 
     return {
       monthTotalCents,
@@ -102,7 +108,7 @@ export const ExpenseListView: React.FC = () => {
       monthDebtPaymentCents,
       totalCount: expenses.length,
     };
-  }, [expenses]);
+  }, [expenses, payments]);
 
   const handleEdit = (expense: Expense) => {
     setExpenseToEdit(expense);

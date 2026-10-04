@@ -35,6 +35,7 @@ export const Badge: React.FC<BadgeProps> = ({ type, value, className = '' }) => 
     const statusConfig: Record<DebtStatus | string, { label: string; dot: string; bg: string; text: string }> = {
       em_andamento: { label: 'Em andamento', dot: 'bg-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900', text: 'text-blue-700 dark:text-blue-300' },
       quitada: { label: 'Quitada', dot: 'bg-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900', text: 'text-emerald-700 dark:text-emerald-300' },
+      renegociada: { label: 'Renegociada', dot: 'bg-purple-500', bg: 'bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900', text: 'text-purple-700 dark:text-purple-300' },
       suspensa: { label: 'Suspensa', dot: 'bg-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900', text: 'text-amber-700 dark:text-amber-300' },
       cancelada: { label: 'Cancelada', dot: 'bg-slate-400', bg: 'bg-slate-100 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700', text: 'text-slate-600 dark:text-slate-400' },
     };

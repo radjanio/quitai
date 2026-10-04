@@ -111,7 +111,7 @@ export const InvestmentTransactionModal: React.FC<InvestmentTransactionModalProp
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label htmlFor="tx-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Valor da Operação *
             </label>
             <div className="relative">
@@ -119,7 +119,9 @@ export const InvestmentTransactionModal: React.FC<InvestmentTransactionModalProp
                 R$
               </span>
               <input
+                id="tx-amount"
                 type="text"
+                inputMode="decimal"
                 required
                 placeholder="0,00"
                 value={rawAmount}
@@ -134,12 +136,13 @@ export const InvestmentTransactionModal: React.FC<InvestmentTransactionModalProp
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label htmlFor="tx-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Data da Operação *
             </label>
             <div className="relative">
               <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
+                id="tx-date"
                 type="date"
                 required
                 value={date}

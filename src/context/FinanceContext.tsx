@@ -118,6 +118,30 @@ interface FinanceContextType {
     notes?: string
   ) => void;
 
+  amortizeBackwards: (
+    debtId: string,
+    paidAmountCents: number,
+    installmentsToPay: { installmentId: string; paidCents: number; discountCents: number }[],
+    paymentDate: string,
+    paymentMethod: PaymentMethod,
+    notes?: string
+  ) => void;
+
+  payMultipleInstallments: (
+    installmentIds: string[],
+    paymentDate: string,
+    paymentMethod: PaymentMethod,
+    notes?: string
+  ) => void;
+
+  settleDebtWithDiscount: (
+    debtId: string,
+    settlementAmountCents: number,
+    paymentDate: string,
+    paymentMethod: PaymentMethod,
+    notes?: string
+  ) => void;
+
   undoPayment: (paymentId: string) => void;
 
   editInstallment: (
@@ -921,6 +945,241 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     [debts, installments, payments, attachments, history, adjustmentRules, persistState, showToast]
   );
 
+  // Amortize Backwards (Amortização Extraordinária CDC Art. 52 § 2º)
+  const amortizeBackwards = useCallback(
+    (
+      debtId: string,
+      paidAmountCents: number,
+      installmentsToPay: { installmentId: string; paidCents: number; discountCents: number }[],
+      paymentDate: string,
+      paymentMethod: PaymentMethod,
+      notes?: string
+    ) => {
+      const debt = debts.find((d) => d.id === debtId);
+      if (!debt || installmentsToPay.length === 0) return;
+
+      const now = new Date().toISOString();
+      const instIdMap = new Map(installmentsToPay.map((item) => [item.installmentId, item]));
+
+      const newPayments: PaymentRecord[] = installmentsToPay.map((item, idx) => ({
+        id: `pay-amort-${Date.now()}-${idx}`,
+        debtId,
+        installmentId: item.installmentId,
+        amountCents: item.paidCents,
+        paymentDate,
+        paymentMethod,
+        notes: notes || `Amortização extraordinária (Economia de juros: R$ ${(item.discountCents / 100).toFixed(2)})`,
+        createdAt: now,
+      }));
+
+      const updatedInstallments = installments.map((i) => {
+        const amortData = instIdMap.get(i.id);
+        if (amortData) {
+          return {
+            ...i,
+            paidAmountCents: amortData.paidCents,
+            discountCents: (i.discountCents || 0) + amortData.discountCents,
+            paidDate: paymentDate,
+            status: 'paga' as const,
+            notes: (i.notes ? i.notes + ' | ' : '') + `Quitada via Amortização CDC (Economia juros: R$ ${(amortData.discountCents / 100).toFixed(2)})`,
+            updatedAt: now,
+          };
+        }
+        return i;
+      });
+
+      const totalDiscountCents = installmentsToPay.reduce((acc, curr) => acc + curr.discountCents, 0);
+
+      const historyEvent: HistoryEvent = {
+        id: `hist-amort-${Date.now()}`,
+        debtId,
+        type: 'amortizacao_antecipada',
+        title: `Amortização de ${installmentsToPay.length} parcela(s) do final`,
+        description: `Total pago: R$ ${(paidAmountCents / 100).toFixed(2)} com economia de juros de R$ ${(totalDiscountCents / 100).toFixed(2)}.`,
+        amountCents: paidAmountCents,
+        timestamp: now,
+      };
+
+      const remaining = updatedInstallments.filter(
+        (i) => i.debtId === debtId && i.status !== 'paga' && i.status !== 'cancelada'
+      );
+      let updatedDebts = debts;
+      if (remaining.length === 0 && (debt.downPaymentCents === 0 || debt.downPaymentPaid)) {
+        updatedDebts = debts.map((d) => (d.id === debtId ? { ...d, status: 'quitada' as const, updatedAt: now } : d));
+      }
+
+      const updatedPayments = [...newPayments, ...payments];
+      const updatedHistory = [historyEvent, ...history];
+
+      setDebts(updatedDebts);
+      setInstallments(updatedInstallments);
+      setPayments(updatedPayments);
+      setHistory(updatedHistory);
+
+      persistState(updatedDebts, updatedInstallments, updatedPayments, attachments, updatedHistory, adjustmentRules);
+      showToast(`Amortização realizada! ${installmentsToPay.length} parcelas quitadas com economia de R$ ${(totalDiscountCents / 100).toFixed(2)}!`, 'success');
+    },
+    [debts, installments, payments, attachments, history, adjustmentRules, persistState, showToast]
+  );
+
+  // Pay Multiple Installments (Batch Payment)
+  const payMultipleInstallments = useCallback(
+    (
+      installmentIds: string[],
+      paymentDate: string,
+      paymentMethod: PaymentMethod,
+      notes?: string
+    ) => {
+      if (installmentIds.length === 0) return;
+      const now = new Date().toISOString();
+      const targetInsts = installments.filter((i) => installmentIds.includes(i.id));
+      if (targetInsts.length === 0) return;
+
+      const debtId = targetInsts[0].debtId;
+      const debt = debts.find((d) => d.id === debtId);
+
+      const newPayments: PaymentRecord[] = targetInsts.map((inst, idx) => {
+        const remainingToPay = Math.max(0, inst.expectedAmountCents - (inst.paidAmountCents || 0));
+        return {
+          id: `pay-batch-${Date.now()}-${idx}`,
+          debtId: inst.debtId,
+          installmentId: inst.id,
+          amountCents: remainingToPay,
+          paymentDate,
+          paymentMethod,
+          notes: notes || `Pagamento em lote Parcela #${inst.installmentNumber}`,
+          createdAt: now,
+        };
+      });
+
+      const updatedInstallments = installments.map((i) => {
+        if (installmentIds.includes(i.id)) {
+          return {
+            ...i,
+            paidAmountCents: i.expectedAmountCents,
+            paidDate: paymentDate,
+            status: 'paga' as const,
+            notes: notes || i.notes,
+            updatedAt: now,
+          };
+        }
+        return i;
+      });
+
+      const totalPaidCents = newPayments.reduce((acc, p) => acc + p.amountCents, 0);
+
+      const historyEvent: HistoryEvent = {
+        id: `hist-batch-${Date.now()}`,
+        debtId,
+        type: 'pagamento_lote',
+        title: `Pagamento em lote de ${targetInsts.length} parcelas`,
+        description: `Parcelas: ${targetInsts.map((i) => `#${i.installmentNumber}`).join(', ')} — Total pago: R$ ${(totalPaidCents / 100).toFixed(2)}.`,
+        amountCents: totalPaidCents,
+        timestamp: now,
+      };
+
+      const remaining = updatedInstallments.filter(
+        (i) => i.debtId === debtId && i.status !== 'paga' && i.status !== 'cancelada'
+      );
+      let updatedDebts = debts;
+      if (remaining.length === 0 && (!debt || debt.downPaymentPaid)) {
+        updatedDebts = debts.map((d) => (d.id === debtId ? { ...d, status: 'quitada' as const, updatedAt: now } : d));
+      }
+
+      const updatedPayments = [...newPayments, ...payments];
+      const updatedHistory = [historyEvent, ...history];
+
+      setDebts(updatedDebts);
+      setInstallments(updatedInstallments);
+      setPayments(updatedPayments);
+      setHistory(updatedHistory);
+
+      persistState(updatedDebts, updatedInstallments, updatedPayments, attachments, updatedHistory, adjustmentRules);
+      showToast(`${targetInsts.length} parcelas quitadas em lote com sucesso!`, 'success');
+    },
+    [debts, installments, payments, attachments, history, adjustmentRules, persistState, showToast]
+  );
+
+  // Settle Debt With Discount / Agreement (Quitação com Acordo)
+  const settleDebtWithDiscount = useCallback(
+    (
+      debtId: string,
+      settlementAmountCents: number,
+      paymentDate: string,
+      paymentMethod: PaymentMethod,
+      notes?: string
+    ) => {
+      const debt = debts.find((d) => d.id === debtId);
+      if (!debt) return;
+
+      const now = new Date().toISOString();
+      const openInsts = installments.filter(
+        (i) => i.debtId === debtId && i.status !== 'paga' && i.status !== 'cancelada'
+      );
+
+      const totalOpenExpectedCents = openInsts.reduce(
+        (acc, i) => acc + Math.max(0, i.expectedAmountCents - (i.paidAmountCents || 0)),
+        0
+      );
+      const totalDiscountCents = Math.max(0, totalOpenExpectedCents - settlementAmountCents);
+
+      const updatedInstallments = installments.map((i) => {
+        if (i.debtId === debtId && i.status !== 'paga' && i.status !== 'cancelada') {
+          const ratio = totalOpenExpectedCents > 0 ? i.expectedAmountCents / totalOpenExpectedCents : 1 / openInsts.length;
+          const instPaidCents = Math.round(settlementAmountCents * ratio);
+          const instDiscountCents = Math.max(0, i.expectedAmountCents - instPaidCents);
+
+          return {
+            ...i,
+            paidAmountCents: instPaidCents,
+            discountCents: instDiscountCents,
+            paidDate: paymentDate,
+            status: 'paga' as const,
+            notes: (i.notes ? i.notes + ' | ' : '') + 'Quitada em acordo/liquidação integral com desconto.',
+            updatedAt: now,
+          };
+        }
+        return i;
+      });
+
+      const paymentRecord: PaymentRecord = {
+        id: `pay-settle-${Date.now()}`,
+        debtId,
+        amountCents: settlementAmountCents,
+        paymentDate,
+        paymentMethod,
+        notes: notes || `Quitação integral negociada com desconto de R$ ${(totalDiscountCents / 100).toFixed(2)}`,
+        createdAt: now,
+      };
+
+      const historyEvent: HistoryEvent = {
+        id: `hist-settle-${Date.now()}`,
+        debtId,
+        type: 'acordo_quitacao',
+        title: 'Quitação Integral com Acordo / Desconto',
+        description: `Dívida quitada por R$ ${(settlementAmountCents / 100).toFixed(2)} à vista (Desconto obtido: R$ ${(totalDiscountCents / 100).toFixed(2)}).`,
+        amountCents: settlementAmountCents,
+        timestamp: now,
+      };
+
+      const updatedDebts = debts.map((d) =>
+        d.id === debtId ? { ...d, status: 'quitada' as const, downPaymentPaid: true, updatedAt: now } : d
+      );
+
+      const updatedPayments = [paymentRecord, ...payments];
+      const updatedHistory = [historyEvent, ...history];
+
+      setDebts(updatedDebts);
+      setInstallments(updatedInstallments);
+      setPayments(updatedPayments);
+      setHistory(updatedHistory);
+
+      persistState(updatedDebts, updatedInstallments, updatedPayments, attachments, updatedHistory, adjustmentRules);
+      showToast(`Dívida quitada integralmente! Economia de R$ ${(totalDiscountCents / 100).toFixed(2)}. Parabéns!`, 'success');
+    },
+    [debts, installments, payments, attachments, history, adjustmentRules, persistState, showToast]
+  );
+
   // Undo / Delete Payment Record
   const undoPayment = useCallback(
     (paymentId: string) => {
@@ -1011,9 +1270,15 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       const updatedInstallments = installments.map((i) => {
         if (i.id !== installmentId) return i;
         const newDueDate = updates.dueDate || i.dueDate;
+        const newExpected = updates.expectedAmountCents !== undefined ? updates.expectedAmountCents : i.expectedAmountCents;
+        const currentPaid = i.paidAmountCents || 0;
         let newStatus = i.status;
-        if (i.status !== 'paga') {
-          newStatus = isOverdue(newDueDate, i.status) ? 'vencida' : 'pendente';
+        if (currentPaid >= newExpected && newExpected > 0) {
+          newStatus = 'paga';
+        } else if (currentPaid > 0) {
+          newStatus = 'parcialmente_paga';
+        } else {
+          newStatus = isOverdue(newDueDate, 'pendente') ? 'vencida' : 'pendente';
         }
 
         return {
@@ -1328,6 +1593,9 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         registerInstallmentPayment,
         registerPartialPayment,
         registerDownPayment,
+        amortizeBackwards,
+        payMultipleInstallments,
+        settleDebtWithDiscount,
         undoPayment,
         editInstallment,
         addAttachment,

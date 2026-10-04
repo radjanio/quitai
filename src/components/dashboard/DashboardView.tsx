@@ -241,17 +241,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* 8. Próximos vencimentos mais urgentes */}
         <StatCard
           title="Próximo Vencimento"
-          value={nextDue ? formatDate(nextDue.dueDate) : 'Nenhum'}
+          value={nextDue ? formatDate(nextDue.dueDate) : debts.length === 0 ? 'Nenhum' : 'Tudo em dia!'}
           subtext={
             nextDue && debtForNextDue
               ? `${debtForNextDue.title} • ${formatCurrencyCents(nextDue.expectedAmountCents)} (${nextDays?.label})`
-              : 'Nenhuma parcela pendente'
+              : debts.length === 0
+              ? 'Cadastre sua 1ª dívida para iniciar o acompanhamento'
+              : 'Todas as parcelas cadastradas estão quitadas'
           }
           icon={<Calendar className="w-5 h-5" />}
-          variant={nextDays?.isPast ? 'rose' : 'default'}
+          variant={nextDays?.isPast ? 'rose' : !nextDue && debts.length > 0 ? 'emerald' : 'default'}
           onClick={() => {
             if (nextDue && debtForNextDue) {
               onSelectDebt(debtForNextDue.id);
+            } else if (debts.length === 0) {
+              onOpenCreateDebt();
             }
           }}
         />

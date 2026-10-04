@@ -38,32 +38,40 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({ isOpen
 -- ==============================================================================
 
 create extension if not exists "uuid-ossp";
+create extension if not exists "pgcrypto";
 
--- 1. Perfis de Usuário
+-- Função utilitária para manter updated_at atualizado
+create or replace function public.handle_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+-- 1. Perfis de Usuário (profiles)
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
   email text not null,
+  phone text,
   avatar_url text,
+  plan text not null default 'free',
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
 alter table public.profiles enable row level security;
+drop policy if exists "RLS profiles select" on public.profiles;
+create policy "RLS profiles select" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "RLS profiles insert" on public.profiles;
+create policy "RLS profiles insert" on public.profiles for insert with check (auth.uid() = id);
+drop policy if exists "RLS profiles update" on public.profiles;
+create policy "RLS profiles update" on public.profiles for update using (auth.uid() = id);
+drop policy if exists "RLS profiles delete" on public.profiles;
+create policy "RLS profiles delete" on public.profiles for delete using (auth.uid() = id);
 
-create policy "Usuários podem ver apenas seu próprio perfil"
-  on public.profiles for select using (auth.uid() = id);
-
-create policy "Usuários podem inserir seu próprio perfil"
-  on public.profiles for insert with check (auth.uid() = id);
-
-create policy "Usuários podem atualizar seu próprio perfil"
-  on public.profiles for update using (auth.uid() = id);
-
-create policy "Usuários podem excluir seu próprio perfil"
-  on public.profiles for delete using (auth.uid() = id);
-
--- Trigger de perfil automático
+-- Trigger de perfil automático na criação de usuário auth
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 begin
@@ -94,6 +102,7 @@ create table if not exists public.debts (
   installment_count integer not null,
   default_installment_amount_cents bigint not null,
   interest_rate_annual numeric,
+  monetary_correction_index text,
   start_date date not null,
   due_day integer not null,
   payment_method text not null default 'outro',
@@ -104,10 +113,16 @@ create table if not exists public.debts (
 );
 
 alter table public.debts enable row level security;
+drop policy if exists "RLS debts select" on public.debts;
 create policy "RLS debts select" on public.debts for select using (auth.uid() = user_id);
+drop policy if exists "RLS debts insert" on public.debts;
 create policy "RLS debts insert" on public.debts for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS debts update" on public.debts;
 create policy "RLS debts update" on public.debts for update using (auth.uid() = user_id);
+drop policy if exists "RLS debts delete" on public.debts;
 create policy "RLS debts delete" on public.debts for delete using (auth.uid() = user_id);
+create index if not exists idx_debts_user_id on public.debts(user_id);
+create index if not exists idx_debts_status on public.debts(status);
 
 -- 3. Parcelas (installments)
 create table if not exists public.installments (
@@ -123,16 +138,24 @@ create table if not exists public.installments (
   notes text,
   receipt_url text,
   original_amount_cents bigint,
+  penalty_interest_cents bigint not null default 0,
+  discount_cents bigint not null default 0,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
 alter table public.installments enable row level security;
+drop policy if exists "RLS installments select" on public.installments;
 create policy "RLS installments select" on public.installments for select using (auth.uid() = user_id);
+drop policy if exists "RLS installments insert" on public.installments;
 create policy "RLS installments insert" on public.installments for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS installments update" on public.installments;
 create policy "RLS installments update" on public.installments for update using (auth.uid() = user_id);
+drop policy if exists "RLS installments delete" on public.installments;
 create policy "RLS installments delete" on public.installments for delete using (auth.uid() = user_id);
 create index if not exists idx_installments_user_debt on public.installments(user_id, debt_id);
+create index if not exists idx_installments_due_date on public.installments(due_date);
+create index if not exists idx_installments_status on public.installments(status);
 
 -- 4. Pagamentos (payment_records)
 create table if not exists public.payment_records (
@@ -143,22 +166,31 @@ create table if not exists public.payment_records (
   amount_cents bigint not null,
   payment_date date not null,
   payment_method text not null default 'outro',
+  is_down_payment boolean not null default false,
   receipt_attachment_id text,
   notes text,
   created_at timestamp with time zone default now()
 );
 
 alter table public.payment_records enable row level security;
+drop policy if exists "RLS payments select" on public.payment_records;
 create policy "RLS payments select" on public.payment_records for select using (auth.uid() = user_id);
+drop policy if exists "RLS payments insert" on public.payment_records;
 create policy "RLS payments insert" on public.payment_records for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS payments update" on public.payment_records;
 create policy "RLS payments update" on public.payment_records for update using (auth.uid() = user_id);
+drop policy if exists "RLS payments delete" on public.payment_records;
 create policy "RLS payments delete" on public.payment_records for delete using (auth.uid() = user_id);
+create index if not exists idx_payments_user_debt on public.payment_records(user_id, debt_id);
 
--- 5. Anexos (attachments)
+-- 5. Anexos e Comprovantes (attachments)
 create table if not exists public.attachments (
   id text primary key,
-  debt_id text not null references public.debts(id) on delete cascade,
+  debt_id text references public.debts(id) on delete cascade,
   installment_id text references public.installments(id) on delete set null,
+  payment_id text,
+  related_type text,
+  related_id text,
   user_id uuid not null references auth.users(id) on delete cascade,
   file_name text not null,
   file_type text not null,
@@ -171,15 +203,21 @@ create table if not exists public.attachments (
 );
 
 alter table public.attachments enable row level security;
+drop policy if exists "RLS attachments select" on public.attachments;
 create policy "RLS attachments select" on public.attachments for select using (auth.uid() = user_id);
+drop policy if exists "RLS attachments insert" on public.attachments;
 create policy "RLS attachments insert" on public.attachments for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS attachments update" on public.attachments;
 create policy "RLS attachments update" on public.attachments for update using (auth.uid() = user_id);
+drop policy if exists "RLS attachments delete" on public.attachments;
 create policy "RLS attachments delete" on public.attachments for delete using (auth.uid() = user_id);
+create index if not exists idx_attachments_user on public.attachments(user_id);
 
--- 6. Linha do Tempo (history_events)
+-- 6. Linha do Tempo e Auditoria (history_events)
 create table if not exists public.history_events (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
+  installment_id text references public.installments(id) on delete set null,
   user_id uuid not null references auth.users(id) on delete cascade,
   type text not null,
   title text not null,
@@ -190,25 +228,36 @@ create table if not exists public.history_events (
 );
 
 alter table public.history_events enable row level security;
+drop policy if exists "RLS history select" on public.history_events;
 create policy "RLS history select" on public.history_events for select using (auth.uid() = user_id);
+drop policy if exists "RLS history insert" on public.history_events;
 create policy "RLS history insert" on public.history_events for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS history delete" on public.history_events;
 create policy "RLS history delete" on public.history_events for delete using (auth.uid() = user_id);
+create index if not exists idx_history_user_debt on public.history_events(user_id, debt_id);
 
 -- 7. Regras de Reajuste (debt_adjustment_rules)
 create table if not exists public.debt_adjustment_rules (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
-  index_name text not null,
-  periodicity text not null,
-  next_adjustment_date date not null,
+  type text not null default 'outro',
+  rate_percentage numeric,
+  index_name text,
+  periodicity text not null default 'anual',
+  application_date date,
+  notes text,
   created_at timestamp with time zone default now()
 );
 
 alter table public.debt_adjustment_rules enable row level security;
+drop policy if exists "RLS adjustment select" on public.debt_adjustment_rules;
 create policy "RLS adjustment select" on public.debt_adjustment_rules for select using (auth.uid() = user_id);
+drop policy if exists "RLS adjustment insert" on public.debt_adjustment_rules;
 create policy "RLS adjustment insert" on public.debt_adjustment_rules for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS adjustment update" on public.debt_adjustment_rules;
 create policy "RLS adjustment update" on public.debt_adjustment_rules for update using (auth.uid() = user_id);
+drop policy if exists "RLS adjustment delete" on public.debt_adjustment_rules;
 create policy "RLS adjustment delete" on public.debt_adjustment_rules for delete using (auth.uid() = user_id);
 
 -- 8. Entradas de Dinheiro (incomes)
@@ -223,16 +272,22 @@ create table if not exists public.incomes (
   account_or_origin text not null default 'Conta Principal',
   is_recurring boolean not null default false,
   recurrence_frequency text,
+  attachment_id text,
   notes text,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
 alter table public.incomes enable row level security;
+drop policy if exists "RLS incomes select" on public.incomes;
 create policy "RLS incomes select" on public.incomes for select using (auth.uid() = user_id);
+drop policy if exists "RLS incomes insert" on public.incomes;
 create policy "RLS incomes insert" on public.incomes for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS incomes update" on public.incomes;
 create policy "RLS incomes update" on public.incomes for update using (auth.uid() = user_id);
+drop policy if exists "RLS incomes delete" on public.incomes;
 create policy "RLS incomes delete" on public.incomes for delete using (auth.uid() = user_id);
+create index if not exists idx_incomes_user_date on public.incomes(user_id, date);
 
 -- 9. Despesas (expenses)
 create table if not exists public.expenses (
@@ -248,16 +303,22 @@ create table if not exists public.expenses (
   is_recurring boolean not null default false,
   recurrence_frequency text,
   linked_debt_payment_id text,
+  attachment_id text,
   notes text,
   created_at timestamp with time zone default now(),
   updated_at timestamp with time zone default now()
 );
 
 alter table public.expenses enable row level security;
+drop policy if exists "RLS expenses select" on public.expenses;
 create policy "RLS expenses select" on public.expenses for select using (auth.uid() = user_id);
+drop policy if exists "RLS expenses insert" on public.expenses;
 create policy "RLS expenses insert" on public.expenses for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS expenses update" on public.expenses;
 create policy "RLS expenses update" on public.expenses for update using (auth.uid() = user_id);
+drop policy if exists "RLS expenses delete" on public.expenses;
 create policy "RLS expenses delete" on public.expenses for delete using (auth.uid() = user_id);
+create index if not exists idx_expenses_user_date on public.expenses(user_id, date);
 
 -- 10. Investimentos (investments)
 create table if not exists public.investments (
@@ -277,10 +338,15 @@ create table if not exists public.investments (
 );
 
 alter table public.investments enable row level security;
+drop policy if exists "RLS investments select" on public.investments;
 create policy "RLS investments select" on public.investments for select using (auth.uid() = user_id);
+drop policy if exists "RLS investments insert" on public.investments;
 create policy "RLS investments insert" on public.investments for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS investments update" on public.investments;
 create policy "RLS investments update" on public.investments for update using (auth.uid() = user_id);
+drop policy if exists "RLS investments delete" on public.investments;
 create policy "RLS investments delete" on public.investments for delete using (auth.uid() = user_id);
+create index if not exists idx_investments_user on public.investments(user_id);
 
 -- 11. Movimentações de Investimento (investment_transactions)
 create table if not exists public.investment_transactions (
@@ -295,9 +361,10 @@ create table if not exists public.investment_transactions (
 );
 
 alter table public.investment_transactions enable row level security;
+drop policy if exists "RLS inv_tx select" on public.investment_transactions;
 create policy "RLS inv_tx select" on public.investment_transactions for select using (auth.uid() = user_id);
-create policy "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
-create policy "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
+drop policy if exists "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
+drop policy if exists "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
 create index if not exists idx_inv_tx_user_inv on public.investment_transactions(user_id, investment_id);
 `;
 
@@ -429,27 +496,25 @@ create index if not exists idx_inv_tx_user_inv on public.investment_transactions
             </ol>
           </div>
 
-          {/* SQL Script Viewer */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
+          {/* SQL Script Copy Action (Sem exibir o código na tela) */}
+          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
               <span className="text-xs font-bold text-slate-900 dark:text-white flex items-center gap-1.5">
                 <Code2 className="w-4 h-4 text-emerald-500" />
-                Script SQL (Tabelas + RLS Completo)
+                Script de Criação das Tabelas & RLS
               </span>
-              <button
-                type="button"
-                onClick={handleCopy}
-                className="px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-750 flex items-center gap-1.5 transition-colors cursor-pointer"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copied ? 'Copiado!' : 'Copiar Script SQL'}</span>
-              </button>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                O código SQL está pronto e seguro. Clique ao lado para copiar para a área de transferência.
+              </p>
             </div>
-            <div className="relative rounded-2xl bg-slate-950 border border-slate-800 p-3 max-h-56 overflow-y-auto">
-              <pre className="font-mono text-[11px] text-slate-300 leading-relaxed whitespace-pre">
-                {sqlScript}
-              </pre>
-            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shrink-0 flex items-center gap-2 cursor-pointer shadow-sm"
+            >
+              {copied ? <Check className="w-4 h-4 text-white" /> : <Copy className="w-4 h-4" />}
+              <span>{copied ? 'Copiado para Área de Transferência!' : 'Copiar Script SQL'}</span>
+            </button>
           </div>
         </div>
 

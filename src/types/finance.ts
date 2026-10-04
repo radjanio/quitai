@@ -15,6 +15,7 @@ export type DebtCategory =
 export type DebtStatus =
   | 'em_andamento'
   | 'quitada'
+  | 'renegociada'
   | 'suspensa'
   | 'cancelada';
 
@@ -152,6 +153,9 @@ export interface HistoryEvent {
     | 'pagamento_entrada'
     | 'pagamento_parcela'
     | 'pagamento_parcial'
+    | 'pagamento_lote'
+    | 'amortizacao_antecipada'
+    | 'acordo_quitacao'
     | 'estorno_pagamento'
     | 'reajuste_valor'
     | 'alteracao_vencimento'

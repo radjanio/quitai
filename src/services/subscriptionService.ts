@@ -350,7 +350,7 @@ export const SubscriptionService = {
         return await response.json();
       } else {
         const err = await response.json();
-        return { success: false, error: err.error || 'Falha ao conectar com Mercado Pago.', ...err };
+        return { success: false, error: err.error || 'Falha ao processar pagamento.', ...err };
       }
     } catch (err: any) {
       console.warn('Fallback ao criar preferência MP:', err);

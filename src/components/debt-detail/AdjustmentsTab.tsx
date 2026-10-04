@@ -102,11 +102,12 @@ export const AdjustmentsTab: React.FC<AdjustmentsTabProps> = ({
 
           <form onSubmit={handleApplyBatch} className="space-y-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="batch-percentage" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Percentual do Reajuste (%) *
               </label>
               <div className="relative">
                 <input
+                  id="batch-percentage"
                   type="number"
                   step="0.01"
                   required
@@ -120,29 +121,37 @@ export const AdjustmentsTab: React.FC<AdjustmentsTabProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="batch-start-installment" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Aplicar a partir da Parcela Nº *
               </label>
-              <select
-                value={startInstallmentNum}
-                onChange={(e) => setStartInstallmentNum(parseInt(e.target.value))}
-                className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
-              >
-                {installments
-                  .filter((i) => i.status !== 'paga')
-                  .map((i) => (
-                    <option key={i.id} value={i.installmentNumber}>
-                      Parcela #{i.installmentNumber} (Vence em {formatDate(i.dueDate)}) - Atual: {formatCurrency(i.expectedAmountCents)}
-                    </option>
-                  ))}
-              </select>
+              {installments.filter((i) => i.status !== 'paga').length === 0 ? (
+                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-xs text-slate-500 dark:text-slate-400">
+                  Todas as parcelas desta dívida já estão quitadas.
+                </div>
+              ) : (
+                <select
+                  id="batch-start-installment"
+                  value={startInstallmentNum}
+                  onChange={(e) => setStartInstallmentNum(parseInt(e.target.value))}
+                  className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
+                >
+                  {installments
+                    .filter((i) => i.status !== 'paga')
+                    .map((i) => (
+                      <option key={i.id} value={i.installmentNumber}>
+                        Parcela #{i.installmentNumber} (Vence em {formatDate(i.dueDate)}) - Atual: {formatCurrency(i.expectedAmountCents)}
+                      </option>
+                    ))}
+                </select>
+              )}
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="batch-reason" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Motivo / Justificativa do Reajuste *
               </label>
               <input
+                id="batch-reason"
                 type="text"
                 required
                 value={adjustmentReason}
@@ -173,7 +182,8 @@ export const AdjustmentsTab: React.FC<AdjustmentsTabProps> = ({
 
             <button
               type="submit"
-              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              disabled={installments.filter((i) => i.status !== 'paga').length === 0}
+              className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow-sm transition-colors cursor-pointer flex items-center justify-center gap-1.5"
             >
               <CheckCircle2 className="w-4 h-4" />
               Aplicar Reajuste nas Parcelas Futuras

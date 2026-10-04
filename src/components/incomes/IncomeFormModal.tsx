@@ -135,10 +135,11 @@ export const IncomeFormModal: React.FC<IncomeFormModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label htmlFor="income-desc" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Descrição da Entrada *
             </label>
             <input
+              id="income-desc"
               type="text"
               required
               placeholder="Ex: Salário Mensal, Freelance Empresa X, Dividendos..."
@@ -150,7 +151,7 @@ export const IncomeFormModal: React.FC<IncomeFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="income-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Valor Recebido *
               </label>
               <div className="relative">
@@ -158,7 +159,9 @@ export const IncomeFormModal: React.FC<IncomeFormModalProps> = ({
                   R$
                 </span>
                 <input
+                  id="income-amount"
                   type="text"
+                  inputMode="decimal"
                   required
                   placeholder="0,00"
                   value={rawAmount}
@@ -173,12 +176,13 @@ export const IncomeFormModal: React.FC<IncomeFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="income-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Data de Recebimento *
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="income-date"
                   type="date"
                   required
                   value={date}

@@ -132,10 +132,11 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            <label htmlFor="expense-desc" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
               Descrição da Despesa *
             </label>
             <input
+              id="expense-desc"
               type="text"
               required
               placeholder="Ex: Supermercado Pão de Açúcar, Enel Energia, Farmácia..."
@@ -147,7 +148,7 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="expense-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Valor Pago / Previsto *
               </label>
               <div className="relative">
@@ -155,7 +156,9 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
                   R$
                 </span>
                 <input
+                  id="expense-amount"
                   type="text"
+                  inputMode="decimal"
                   required
                   placeholder="0,00"
                   value={rawAmount}
@@ -170,12 +173,13 @@ export const ExpenseFormModal: React.FC<ExpenseFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="expense-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Data do Pagamento *
               </label>
               <div className="relative">
                 <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 <input
+                  id="expense-date"
                   type="date"
                   required
                   value={date}

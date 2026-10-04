@@ -74,6 +74,7 @@ export const SupabaseService = {
         installmentCount: Number(d.installment_count),
         defaultInstallmentAmountCents: Number(d.default_installment_amount_cents),
         interestRateAnnual: d.interest_rate_annual ? Number(d.interest_rate_annual) : undefined,
+        monetaryCorrectionIndex: d.monetary_correction_index || undefined,
         startDate: d.start_date,
         dueDay: Number(d.due_day),
         paymentMethod: d.payment_method,
@@ -100,6 +101,8 @@ export const SupabaseService = {
         status: i.status,
         notes: i.notes,
         originalAmountCents: i.original_amount_cents ? Number(i.original_amount_cents) : undefined,
+        penaltyInterestCents: i.penalty_interest_cents ? Number(i.penalty_interest_cents) : 0,
+        discountCents: i.discount_cents ? Number(i.discount_cents) : 0,
         createdAt: i.created_at,
         updatedAt: i.updated_at,
       }));
@@ -117,6 +120,7 @@ export const SupabaseService = {
         amountCents: Number(p.amount_cents),
         paymentDate: p.payment_date,
         paymentMethod: p.payment_method,
+        isDownPayment: Boolean(p.is_down_payment),
         notes: p.notes,
         createdAt: p.created_at,
       }));
@@ -349,6 +353,7 @@ export const SupabaseService = {
           installment_count: d.installmentCount,
           default_installment_amount_cents: d.defaultInstallmentAmountCents,
           interest_rate_annual: d.interestRateAnnual || null,
+          monetary_correction_index: d.monetaryCorrectionIndex || null,
           start_date: d.startDate,
           due_day: d.dueDay,
           payment_method: d.paymentMethod,
@@ -373,6 +378,8 @@ export const SupabaseService = {
           status: i.status,
           notes: i.notes || null,
           original_amount_cents: i.originalAmountCents || null,
+          penalty_interest_cents: i.penaltyInterestCents || 0,
+          discount_cents: i.discountCents || 0,
           updated_at: new Date().toISOString(),
         }));
         await supabase.from('installments').upsert(instRows);
@@ -388,6 +395,7 @@ export const SupabaseService = {
           amount_cents: p.amountCents,
           payment_date: p.paymentDate,
           payment_method: p.paymentMethod,
+          is_down_payment: Boolean(p.isDownPayment),
           notes: p.notes || null,
         }));
         await supabase.from('payment_records').upsert(payRows);

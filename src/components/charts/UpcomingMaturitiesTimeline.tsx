@@ -21,19 +21,34 @@ export const UpcomingMaturitiesTimeline: React.FC<UpcomingMaturitiesTimelineProp
   onPayInstallment,
   onSelectDebt,
 }) => {
-  const debtMap = new Map<string, Debt>(debts.map((d) => [d.id, d]));
+  const debtMap = React.useMemo(() => new Map<string, Debt>(debts.map((d) => [d.id, d])), [debts]);
 
-  // Get all unpaid installments (pending or overdue)
-  const unpaid = installments
-    .filter((i) => i.status !== 'paga' && i.status !== 'cancelada')
-    .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
-    .slice(0, 8); // Top 8 next dues
+  // Get all unpaid installments (pending or overdue) belonging to active debts
+  const unpaid = React.useMemo(() => {
+    return installments
+      .filter((i) => {
+        if (i.status === 'paga' || i.status === 'cancelada') return false;
+        const debt = debtMap.get(i.debtId);
+        if (!debt || debt.status === 'quitada') return false;
+        return true;
+      })
+      .sort((a, b) => a.dueDate.localeCompare(b.dueDate))
+      .slice(0, 8); // Top 8 next dues
+  }, [installments, debtMap]);
 
   if (unpaid.length === 0) {
     return (
-      <div className="h-48 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-sm">
+      <div className="h-48 flex flex-col items-center justify-center text-slate-400 dark:text-slate-500 text-xs sm:text-sm text-center px-4">
         <CheckCircle2 className="w-8 h-8 text-emerald-500 mb-2 opacity-80" />
-        <p>Parabéns! Nenhuma parcela pendente ou a vencer no momento.</p>
+        {debts.length === 0 ? (
+          <p className="max-w-xs">
+            Bem-vindo ao QuitaÍ! Cadastre sua primeira dívida de longo prazo para acompanhar vencimentos e alertas automáticos.
+          </p>
+        ) : (
+          <p className="max-w-xs text-emerald-600 dark:text-emerald-400 font-medium">
+            Excelente! Todas as parcelas das suas dívidas cadastradas estão quitadas e em dia.
+          </p>
+        )}
       </div>
     );
   }

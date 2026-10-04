@@ -163,7 +163,7 @@ export const InvestmentFormModal: React.FC<InvestmentFormModalProps> = ({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="inv-initial-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Valor Inicial Aplicado *
               </label>
               <div className="relative">
@@ -171,7 +171,9 @@ export const InvestmentFormModal: React.FC<InvestmentFormModalProps> = ({
                   R$
                 </span>
                 <input
+                  id="inv-initial-amount"
                   type="text"
+                  inputMode="decimal"
                   required
                   placeholder="0,00"
                   value={rawInitialAmount}
@@ -191,7 +193,7 @@ export const InvestmentFormModal: React.FC<InvestmentFormModalProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+              <label htmlFor="inv-current-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
                 Saldo Atual Informado
               </label>
               <div className="relative">
@@ -199,7 +201,9 @@ export const InvestmentFormModal: React.FC<InvestmentFormModalProps> = ({
                   R$
                 </span>
                 <input
+                  id="inv-current-amount"
                   type="text"
+                  inputMode="decimal"
                   placeholder="0,00"
                   value={rawCurrentAmount}
                   onChange={(e) => setRawCurrentAmount(e.target.value)}

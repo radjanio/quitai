@@ -208,10 +208,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {/* Título */}
             <div className="sm:col-span-2">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-title" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Nome da Dívida / Bem *
               </label>
               <input
+                id="debt-title"
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -225,10 +226,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Categoria */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-category" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Categoria *
               </label>
               <select
+                id="debt-category"
                 value={category}
                 onChange={(e) => setCategory(e.target.value as DebtCategory)}
                 className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
@@ -245,10 +247,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Credor */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-creditor" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Credor / Instituição / Vendedor *
               </label>
               <input
+                id="debt-creditor"
                 type="text"
                 value={creditor}
                 onChange={(e) => setCreditor(e.target.value)}
@@ -262,10 +265,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Número do Contrato */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-contract" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Número do Contrato (opcional)
               </label>
               <input
+                id="debt-contract"
                 type="text"
                 value={contractNumber}
                 onChange={(e) => setContractNumber(e.target.value)}
@@ -276,10 +280,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Data Contratação */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-start-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Data da Contratação *
               </label>
               <input
+                id="debt-start-date"
                 type="date"
                 value={startDate}
                 onChange={(e) => setStartDate(e.target.value)}
@@ -289,10 +294,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Descrição detalhada */}
             <div className="sm:col-span-2 lg:col-span-3">
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-description" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Descrição Detalhada / Localização / Dados do Bem
               </label>
               <textarea
+                id="debt-description"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={2}
@@ -313,11 +319,13 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Valor Total */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-total-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Valor Total da Dívida (R$) *
               </label>
               <input
+                id="debt-total-amount"
                 type="text"
+                inputMode="decimal"
                 value={totalAmountStr}
                 onChange={(e) => setTotalAmountStr(e.target.value)}
                 placeholder="Ex: 80000"
@@ -330,11 +338,13 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Valor da Entrada */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-down-payment" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Valor da Entrada (R$)
               </label>
               <input
+                id="debt-down-payment"
                 type="text"
+                inputMode="decimal"
                 value={downPaymentStr}
                 onChange={(e) => setDownPaymentStr(e.target.value)}
                 placeholder="0 se não houver entrada"
@@ -362,10 +372,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
                 {downPaymentPaid && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label htmlFor="debt-down-payment-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                       Data Pagamento da Entrada
                     </label>
                     <input
+                      id="debt-down-payment-date"
                       type="date"
                       value={downPaymentPaidDate}
                       onChange={(e) => setDownPaymentPaidDate(e.target.value)}
@@ -399,10 +410,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Qtd Parcelas */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-installment-count" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Quantidade de Parcelas *
               </label>
               <input
+                id="debt-installment-count"
                 type="number"
                 min="1"
                 max="600"
@@ -414,11 +426,13 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Valor da Parcela */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-installment-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Valor da Parcela (R$) *
               </label>
               <input
+                id="debt-installment-amount"
                 type="text"
+                inputMode="decimal"
                 value={installmentAmountStr}
                 onChange={(e) => setInstallmentAmountStr(e.target.value)}
                 placeholder="Ex: 700.00"
@@ -433,10 +447,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Dia de Vencimento */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-due-day" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Dia de Vencimento (1 a 31) *
               </label>
               <input
+                id="debt-due-day"
                 type="number"
                 min="1"
                 max="31"
@@ -448,10 +463,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Forma de Pagamento */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-payment-method" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Forma de Pagamento Principal
               </label>
               <select
+                id="debt-payment-method"
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value as PaymentMethod)}
                 className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"
@@ -468,12 +484,14 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Taxa de Juros Anual (opcional) */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-interest-rate" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Taxa de Juros a.a. (%) (opcional)
               </label>
               <input
+                id="debt-interest-rate"
                 type="number"
                 step="0.01"
+                inputMode="decimal"
                 value={interestRateAnnual}
                 onChange={(e) => setInterestRateAnnual(e.target.value)}
                 placeholder="Ex: 6.5"
@@ -483,10 +501,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Índice de Reajuste */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-correction-index" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Índice de Correção (opcional)
               </label>
               <input
+                id="debt-correction-index"
                 type="text"
                 value={monetaryCorrectionIndex}
                 onChange={(e) => setMonetaryCorrectionIndex(e.target.value)}
@@ -497,10 +516,11 @@ export const DebtFormModal: React.FC<DebtFormModalProps> = ({
 
             {/* Status Inicial */}
             <div>
-              <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+              <label htmlFor="debt-status" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                 Status da Dívida
               </label>
               <select
+                id="debt-status"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as DebtStatus)}
                 className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500 cursor-pointer"

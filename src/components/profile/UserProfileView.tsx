@@ -15,8 +15,6 @@ import {
   Save,
   KeyRound,
   Database,
-  Heart,
-  ExternalLink,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useFinance } from '../../context/FinanceContext';
@@ -214,38 +212,6 @@ export const UserProfileView: React.FC<UserProfileViewProps> = ({
             </span>
           </div>
         </div>
-      </div>
-
-      {/* Apoio Voluntário via Mercado Pago */}
-      <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-sky-500/10 border border-emerald-500/20 dark:border-emerald-500/30 rounded-3xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 flex items-center justify-center shrink-0">
-            <Heart className="w-6 h-6 fill-current" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                Apoie o QuitaÍ
-              </h3>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300">
-                100% Gratuito
-              </span>
-            </div>
-            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1 max-w-xl">
-              Todas as ferramentas são 100% gratuitas e ilimitadas. Se o QuitaÍ é útil para suas finanças e você deseja apoiar voluntariamente o projeto com qualquer valor, agradecemos imensamente!
-            </p>
-          </div>
-        </div>
-
-        <a
-          href="https://mpago.la/2z7LTzp"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="px-5 py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all shrink-0 hover:scale-[1.02]"
-        >
-          <span>Apoiar via Mercado Pago</span>
-          <ExternalLink className="w-4 h-4" />
-        </a>
       </div>
 
       {/* GERENCIAR PERFIL & SEGURANÇA */}

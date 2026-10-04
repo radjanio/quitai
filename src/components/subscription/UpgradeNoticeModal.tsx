@@ -101,11 +101,13 @@ export const UpgradeNoticeModal: React.FC<UpgradeNoticeModalProps> = ({
               <button
                 onClick={() => {
                   activeOnClose();
-                  openCheckout(plusPlan, 'monthly');
+                  if (onOpenPlans) {
+                    onOpenPlans();
+                  }
                 }}
                 className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-semibold text-xs transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer"
               >
-                Assinar Quitaí Plus Agora
+                Conhecer Planos e Recursos
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

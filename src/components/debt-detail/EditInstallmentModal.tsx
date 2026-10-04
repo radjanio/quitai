@@ -80,11 +80,12 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Vencimento */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="edit-installment-due-date" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Data de Vencimento
           </label>
           <div className="relative">
             <input
+              id="edit-installment-due-date"
               type="date"
               required
               value={dueDate}
@@ -96,11 +97,13 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
 
         {/* Valor Base */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="edit-installment-amount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Valor Base Previsto (R$)
           </label>
           <input
+            id="edit-installment-amount"
             type="text"
+            inputMode="decimal"
             required
             value={amountStr}
             onChange={(e) => setAmountStr(e.target.value)}
@@ -111,11 +114,13 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
         {/* Encargos e Descontos */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label htmlFor="edit-installment-penalty" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               + Juros / Encargos (R$)
             </label>
             <input
+              id="edit-installment-penalty"
               type="text"
+              inputMode="decimal"
               value={penaltyStr}
               onChange={(e) => setPenaltyStr(e.target.value)}
               placeholder="0,00"
@@ -124,11 +129,13 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            <label htmlFor="edit-installment-discount" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
               - Desconto (R$)
             </label>
             <input
+              id="edit-installment-discount"
               type="text"
+              inputMode="decimal"
               value={discountStr}
               onChange={(e) => setDiscountStr(e.target.value)}
               placeholder="0,00"
@@ -163,10 +170,11 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
 
         {/* Motivo da alteração */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+          <label htmlFor="edit-installment-reason" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
             Motivo do Reajuste / Alteração *
           </label>
           <input
+            id="edit-installment-reason"
             type="text"
             required
             value={reason}
@@ -178,13 +186,15 @@ export const EditInstallmentModal: React.FC<EditInstallmentModalProps> = ({
 
         {/* Observações da Parcela */}
         <div>
-          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-            Observações Adicionais
+          <label htmlFor="edit-installment-notes" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+            Observações Gerais da Parcela (opcional)
           </label>
           <textarea
+            id="edit-installment-notes"
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             rows={2}
+            placeholder="Ex: Contrato aditado em 12/03..."
             className="w-full px-3.5 py-2 rounded-xl text-xs border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>

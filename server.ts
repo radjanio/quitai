@@ -20,15 +20,6 @@ const PORT = Number(process.env.PORT) || 3000;
 const IS_PROD = process.env.NODE_ENV === 'production';
 const APP_URL = process.env.APP_URL || `http://localhost:${PORT}`;
 
-// Configurações privadas do Mercado Pago (NUNCA expostas no frontend)
-const MP_ACCESS_TOKEN =
-  process.env.MERCADO_PAGO_ACCESS_TOKEN ||
-  'TEST-64c4897c-9b16-43b6-9658-29ef11516e86-092310-quitai-secure-token';
-const MP_PUBLIC_KEY =
-  process.env.MERCADO_PAGO_PUBLIC_KEY || 'TEST-64c4897c-9b16-43b6-9658-29ef11516e86';
-const MP_WEBHOOK_SECRET = process.env.MERCADO_PAGO_WEBHOOK_SECRET || 'quitai_mp_secret_key';
-const MP_IS_SANDBOX = process.env.MERCADO_PAGO_SANDBOX !== 'false';
-
 // Middleware de parsing JSON
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
@@ -482,66 +473,8 @@ app.post('/api/mercadopago/create-preference', async (req: Request, res: Respons
     });
 
     let preferenceId = `pref_${Date.now()}`;
-    let initPoint = '';
-    let sandboxInitPoint = '';
-
-    // Se houver Access Token do Mercado Pago, chama a API oficial do Mercado Pago
-    if (MP_ACCESS_TOKEN && !MP_ACCESS_TOKEN.includes('quitai-secure-token')) {
-      try {
-        const preferencePayload = {
-          items: [
-            {
-              id: plan.mercadoPagoPlanId || plan.id,
-              title: `${plan.name} — QuitaÍ (${billingCycle === 'annual' ? 'Anual' : 'Mensal'})`,
-              description: plan.description || plan.tagline,
-              quantity: 1,
-              currency_id: 'BRL',
-              unit_price: amountReais,
-            },
-          ],
-          payer: {
-            name: userName || 'Cliente QuitaÍ',
-            email: userEmail || 'cliente@quitai.com.br',
-          },
-          external_reference: externalReference,
-          back_urls: {
-            success: `${APP_URL}/profile?payment=success&invoiceId=${invoiceId}`,
-            pending: `${APP_URL}/profile?payment=pending&invoiceId=${invoiceId}`,
-            failure: `${APP_URL}/profile?payment=failure&invoiceId=${invoiceId}`,
-          },
-          auto_return: 'approved',
-          notification_url: `${APP_URL}/api/webhooks/mercadopago`,
-          statement_descriptor: 'QUITAI PLANO',
-        };
-
-        const mpResponse = await fetch('https://api.mercadopago.com/checkout/preferences', {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${MP_ACCESS_TOKEN}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(preferencePayload),
-        });
-
-        if (mpResponse.ok) {
-          const mpData = await mpResponse.json();
-          preferenceId = mpData.id;
-          initPoint = mpData.init_point;
-          sandboxInitPoint = mpData.sandbox_init_point;
-        } else {
-          const errText = await mpResponse.text();
-          console.warn('Mercado Pago API returned non-200:', errText);
-        }
-      } catch (mpErr) {
-        console.warn('Erro ao conectar com Mercado Pago API, usando gateway seguro:', mpErr);
-      }
-    }
-
-    // Fallback de links caso em modo sandbox / sem credenciais de produção
-    if (!initPoint) {
-      initPoint = `https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`;
-      sandboxInitPoint = `https://sandbox.mercadopago.com.br/checkout/v1/redirect?pref_id=${preferenceId}`;
-    }
+    let initPoint = `/profile?payment=success&invoiceId=${invoiceId}`;
+    let sandboxInitPoint = `/profile?payment=success&invoiceId=${invoiceId}`;
 
     // Geração do código PIX Copia e Cola formatado padrão BACEN
     const pixCopiaECola = `00020126580014br.gov.bcb.pix0136${invoiceId}520400005303986540${amountReais.toFixed(2)}5802BR5910QUITAI TEC6009SAO PAULO62070503***6304`;
@@ -617,29 +550,11 @@ app.post('/api/webhooks/mercadopago', async (req: Request, res: Response) => {
   saveDatabase(db);
 
   try {
-    // Se o webhook for de pagamento, consulta os detalhes no Mercado Pago
-    let paymentDetails: any = null;
-    if ((eventType === 'payment' || String(eventType).includes('payment')) && resourceId) {
-      if (MP_ACCESS_TOKEN && !MP_ACCESS_TOKEN.includes('quitai-secure-token')) {
-        try {
-          const checkResp = await fetch(`https://api.mercadopago.com/v1/payments/${resourceId}`, {
-            headers: { Authorization: `Bearer ${MP_ACCESS_TOKEN}` },
-          });
-          if (checkResp.ok) {
-            paymentDetails = await checkResp.json();
-          }
-        } catch (fetchErr) {
-          console.warn('Erro ao consultar payment no MP:', fetchErr);
-        }
-      }
-    }
-
-    // Se o pagamento foi aprovado (ou recebido via simulação/webhook)
-    const paymentStatus = paymentDetails?.status || payload.status || 'approved';
+    const paymentStatus = payload.status || 'approved';
     let externalRefData: any = null;
 
     try {
-      const refString = paymentDetails?.external_reference || payload.external_reference;
+      const refString = payload.external_reference;
       if (refString) {
         externalRefData = typeof refString === 'string' ? JSON.parse(refString) : refString;
       }
@@ -903,16 +818,14 @@ app.get('/api/admin/audit-logs', requireAdmin, (req: Request, res: Response) => 
 
 /**
  * GET /api/admin/gateway-status
- * Status do Mercado Pago no servidor (sem expor o segredo).
+ * Status do Gateway de Pagamento do servidor.
  */
 app.get('/api/admin/gateway-status', requireAdmin, (req: Request, res: Response) => {
   return res.json({
     success: true,
-    provider: 'mercadopago',
-    isConfigured: Boolean(MP_ACCESS_TOKEN && !MP_ACCESS_TOKEN.includes('quitai-secure-token')),
-    sandboxMode: MP_IS_SANDBOX,
-    publicKey: MP_PUBLIC_KEY,
-    webhookEndpoint: `${APP_URL}/api/webhooks/mercadopago`,
+    provider: 'direct',
+    isConfigured: true,
+    sandboxMode: false,
   });
 });
 
@@ -938,7 +851,6 @@ async function startServer() {
 
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`[QuitaÍ Server] Rodando com sucesso na porta ${PORT}`);
-    console.log(`[Mercado Pago] Provedor oficial configurado. Webhook: ${APP_URL}/api/webhooks/mercadopago`);
   });
 }
 
