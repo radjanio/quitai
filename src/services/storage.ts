@@ -62,65 +62,22 @@ function setLocalItem<T>(key: string, value: T): void {
   }
 }
 
-// IndexedDB setup for attachments to avoid LocalStorage quota limits
-const IDB_NAME = 'QuitaiDB';
-const IDB_VERSION = 1;
-const IDB_STORE_ATTACHMENTS = 'attachment_blobs';
+// Import and re-export attachment storage helpers from attachmentStorage.ts
+import {
+  saveAttachmentData,
+  getAttachmentData,
+  deleteAttachmentData,
+  saveAttachmentToSupabase,
+  deleteAttachmentFromSupabase,
+} from './attachmentStorage';
 
-function openIndexedDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(IDB_NAME, IDB_VERSION);
-    request.onupgradeneeded = (e) => {
-      const db = (e.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(IDB_STORE_ATTACHMENTS)) {
-        db.createObjectStore(IDB_STORE_ATTACHMENTS, { keyPath: 'id' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-  });
-}
-
-export async function saveAttachmentData(id: string, dataUrl: string): Promise<void> {
-  try {
-    const db = await openIndexedDB();
-    const tx = db.transaction(IDB_STORE_ATTACHMENTS, 'readwrite');
-    const store = tx.objectStore(IDB_STORE_ATTACHMENTS);
-    store.put({ id, dataUrl });
-    return new Promise((resolve, reject) => {
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  } catch (err) {
-    console.warn('Could not store in IndexedDB, fallback to memory', err);
-  }
-}
-
-export async function getAttachmentData(id: string): Promise<string | null> {
-  try {
-    const db = await openIndexedDB();
-    const tx = db.transaction(IDB_STORE_ATTACHMENTS, 'readonly');
-    const store = tx.objectStore(IDB_STORE_ATTACHMENTS);
-    const req = store.get(id);
-    return new Promise((resolve) => {
-      req.onsuccess = () => resolve(req.result ? req.result.dataUrl : null);
-      req.onerror = () => resolve(null);
-    });
-  } catch (err) {
-    return null;
-  }
-}
-
-export async function deleteAttachmentData(id: string): Promise<void> {
-  try {
-    const db = await openIndexedDB();
-    const tx = db.transaction(IDB_STORE_ATTACHMENTS, 'readwrite');
-    const store = tx.objectStore(IDB_STORE_ATTACHMENTS);
-    store.delete(id);
-  } catch (err) {
-    console.warn('Failed to delete attachment from IndexedDB', err);
-  }
-}
+export {
+  saveAttachmentData,
+  getAttachmentData,
+  deleteAttachmentData,
+  saveAttachmentToSupabase,
+  deleteAttachmentFromSupabase,
+};
 
 /**
  * Generates initial demo data as requested by user
@@ -845,8 +802,14 @@ export const StorageService = {
   ) {
     setLocalItem(STORAGE_KEYS.DEBTS, debts);
     setLocalItem(STORAGE_KEYS.INSTALLMENTS, installments);
-    setLocalItem(STORAGE_KEYS.PAYMENTS, payments);
-    setLocalItem(STORAGE_KEYS.ATTACHMENTS, attachments);
+    const cleanAttachments = attachments.map((a) => {
+      if (a.dataUrl) {
+        const { dataUrl, ...rest } = a;
+        return rest;
+      }
+      return a;
+    });
+    setLocalItem(STORAGE_KEYS.ATTACHMENTS, cleanAttachments);
     setLocalItem(STORAGE_KEYS.HISTORY, history);
     setLocalItem(STORAGE_KEYS.ADJUSTMENT_RULES, rules);
     setLocalItem(STORAGE_KEYS.INCOMES, incomes !== undefined ? incomes : StorageService.getIncomes());

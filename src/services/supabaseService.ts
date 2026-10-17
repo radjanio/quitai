@@ -5,6 +5,11 @@
 
 import { supabase } from '../lib/supabase';
 import {
+  getAttachmentData,
+  saveAttachmentToSupabase,
+  deleteAttachmentFromSupabase,
+} from './attachmentStorage';
+import {
   Debt,
   Installment,
   PaymentRecord,
@@ -135,12 +140,15 @@ export const SupabaseService = {
         id: a.id,
         debtId: a.debt_id,
         installmentId: a.installment_id,
+        paymentId: a.payment_id,
+        relatedType: a.related_type,
+        relatedId: a.related_id,
         fileName: a.file_name,
         fileType: a.file_type,
         fileSize: Number(a.file_size),
         category: a.category,
         description: a.description,
-        dataUrl: a.data_url,
+        dataUrl: a.data_url || undefined,
         createdAt: a.created_at,
       }));
 
@@ -401,20 +409,32 @@ export const SupabaseService = {
         await supabase.from('payment_records').upsert(payRows);
       }
 
-      // Upsert attachments
+      // Upsert attachments (with binary data_url preservation)
       if (attachments.length > 0) {
-        const attRows = attachments.map((a) => ({
-          id: a.id,
-          debt_id: a.debtId || null,
-          installment_id: a.installmentId || null,
-          user_id: userId,
-          file_name: a.fileName,
-          file_type: a.fileType,
-          file_size: a.fileSize,
-          category: a.category,
-          description: a.description || null,
-          data_url: a.dataUrl || null,
-        }));
+        const attRows = await Promise.all(
+          attachments.map(async (a) => {
+            const row: any = {
+              id: a.id,
+              debt_id: a.debtId || null,
+              installment_id: a.installmentId || null,
+              payment_id: a.paymentId || null,
+              related_type: a.relatedType || null,
+              related_id: a.relatedId || null,
+              user_id: userId,
+              file_name: a.fileName,
+              file_type: a.fileType,
+              file_size: a.fileSize,
+              category: a.category,
+              description: a.description || null,
+              created_at: a.createdAt,
+            };
+            const dataUrl = a.dataUrl || (await getAttachmentData(a.id));
+            if (dataUrl) {
+              row.data_url = dataUrl;
+            }
+            return row;
+          })
+        );
         await supabase.from('attachments').upsert(attRows);
       }
 
@@ -575,5 +595,26 @@ export const SupabaseService = {
       console.warn('Supabase complete purge error:', err);
       return false;
     }
+  },
+
+  /**
+   * Directly save an attachment with binary dataUrl into the Supabase database
+   */
+  async saveAttachment(userId: string, att: Attachment, dataUrl?: string): Promise<boolean> {
+    return saveAttachmentToSupabase(userId, att, dataUrl);
+  },
+
+  /**
+   * Delete attachment from Supabase
+   */
+  async deleteAttachment(attId: string, userId: string): Promise<boolean> {
+    return deleteAttachmentFromSupabase(attId, userId);
+  },
+
+  /**
+   * Fetch binary attachment blob dataUrl from Supabase database
+   */
+  async fetchAttachmentData(attId: string): Promise<string | null> {
+    return getAttachmentData(attId);
   },
 };

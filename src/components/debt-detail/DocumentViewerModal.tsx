@@ -6,7 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../common/Modal';
 import { Attachment } from '../../types/finance';
 import { getAttachmentData } from '../../services/storage';
-import { Download, ExternalLink, FileText, Image as ImageIcon } from 'lucide-react';
+import { Download, ExternalLink, FileText, Image as ImageIcon, RefreshCw } from 'lucide-react';
 import { formatDateTime } from '../../utils/dates';
 
 interface DocumentViewerModalProps {
@@ -23,7 +23,7 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
   const [dataUrl, setDataUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
+  const loadData = () => {
     if (!isOpen || !attachment) {
       setDataUrl(null);
       return;
@@ -42,6 +42,10 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
       .finally(() => {
         setLoading(false);
       });
+  };
+
+  useEffect(() => {
+    loadData();
   }, [isOpen, attachment]);
 
   if (!attachment) return null;
@@ -76,7 +80,10 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
         {/* Viewer Box */}
         <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-slate-100 dark:bg-slate-950 min-h-[350px] max-h-[500px] overflow-auto flex items-center justify-center p-2">
           {loading ? (
-            <div className="text-xs text-slate-400">Carregando arquivo...</div>
+            <div className="flex flex-col items-center justify-center p-8 text-xs text-slate-500 gap-2">
+              <RefreshCw className="w-5 h-5 animate-spin text-emerald-500" />
+              <span>Buscando arquivo no banco de dados Supabase...</span>
+            </div>
           ) : dataUrl ? (
             isImage ? (
               <img
@@ -102,8 +109,19 @@ export const DocumentViewerModal: React.FC<DocumentViewerModalProps> = ({
               </div>
             )
           ) : (
-            <div className="text-center p-8 text-xs text-slate-400">
-              Arquivo em demonstração sem conteúdo binário salvo.
+            <div className="text-center p-8 space-y-3">
+              <FileText className="w-10 h-10 text-slate-400 mx-auto opacity-50" />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Arquivo ainda não sincronizado ou sem conteúdo salvo.
+              </p>
+              <button
+                type="button"
+                onClick={loadData}
+                className="px-3.5 py-1.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-semibold hover:opacity-90 transition-opacity cursor-pointer inline-flex items-center gap-1.5 shadow-sm"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                Recarregar do Banco de Dados
+              </button>
             </div>
           )}
         </div>

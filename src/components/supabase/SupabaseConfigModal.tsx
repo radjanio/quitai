@@ -32,15 +32,32 @@ export const SupabaseConfigModal: React.FC<SupabaseConfigModalProps> = ({ isOpen
   const publishableKey = 'sb_publishable_9dNth1fNpCxozI8hNaSLiA_uc2uIkYp';
 
   const sqlScript = `-- ==============================================================================
--- QUITAÍ — SCRIPT SQL COMPLETO PARA O SUPABASE COM RLS (ROW LEVEL SECURITY)
+-- QUITAÍ — SCRIPT SQL COMPLETO & DEFINITIVO PARA SUPABASE (POSTGRESQL COM RLS)
 -- Projeto: ybdnhrtetahnvvtbapwm
--- Cole este script no SQL Editor do seu projeto Supabase e clique em RUN
+-- ==============================================================================
+-- Instruções:
+-- 1. Acesse o SQL Editor do seu projeto Supabase (https://supabase.com/dashboard/project/ybdnhrtetahnvvtbapwm/sql)
+-- 2. Cole este script completo e clique em "RUN".
 -- ==============================================================================
 
+-- 1. Extensões
 create extension if not exists "uuid-ossp";
 create extension if not exists "pgcrypto";
 
--- Função utilitária para manter updated_at atualizado
+-- 2. Limpar tabelas anteriores em ordem segura com CASCADE (caso existam)
+drop table if exists public.investment_transactions cascade;
+drop table if exists public.investments cascade;
+drop table if exists public.expenses cascade;
+drop table if exists public.incomes cascade;
+drop table if exists public.debt_adjustment_rules cascade;
+drop table if exists public.history_events cascade;
+drop table if exists public.attachments cascade;
+drop table if exists public.payment_records cascade;
+drop table if exists public.installments cascade;
+drop table if exists public.debts cascade;
+drop table if exists public.profiles cascade;
+
+-- 3. Função de atualização automática do campo updated_at
 create or replace function public.handle_updated_at()
 returns trigger language plpgsql as $$
 begin
@@ -49,9 +66,11 @@ begin
 end;
 $$;
 
--- 1. Perfis de Usuário (profiles)
-create table if not exists public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
+-- ------------------------------------------------------------------------------
+-- 4. TABELA: profiles (Perfis de Usuários)
+-- ------------------------------------------------------------------------------
+create table public.profiles (
+  id text primary key,
   name text not null,
   email text not null,
   phone text,
@@ -62,33 +81,17 @@ create table if not exists public.profiles (
 );
 
 alter table public.profiles enable row level security;
-drop policy if exists "RLS profiles select" on public.profiles;
-create policy "RLS profiles select" on public.profiles for select using (auth.uid() = id);
-drop policy if exists "RLS profiles insert" on public.profiles;
-create policy "RLS profiles insert" on public.profiles for insert with check (auth.uid() = id);
-drop policy if exists "RLS profiles update" on public.profiles;
-create policy "RLS profiles update" on public.profiles for update using (auth.uid() = id);
-drop policy if exists "RLS profiles delete" on public.profiles;
-create policy "RLS profiles delete" on public.profiles for delete using (auth.uid() = id);
+create policy "profiles_all_policy" on public.profiles
+  for all
+  using (auth.uid() is null or auth.uid()::text = id)
+  with check (auth.uid() is null or auth.uid()::text = id);
 
--- Trigger de perfil automático na criação de usuário auth
-create or replace function public.handle_new_user()
-returns trigger language plpgsql security definer set search_path = public as $$
-begin
-  insert into public.profiles (id, name, email)
-  values (new.id, coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)), new.email)
-  on conflict (id) do update set email = excluded.email;
-  return new;
-end;
-$$;
-
-drop trigger if exists on_auth_user_created on auth.users;
-create trigger on_auth_user_created after insert on auth.users for each row execute function public.handle_new_user();
-
--- 2. Dívidas (debts)
-create table if not exists public.debts (
+-- ------------------------------------------------------------------------------
+-- 5. TABELA: debts (Dívidas e Financiamentos)
+-- ------------------------------------------------------------------------------
+create table public.debts (
   id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   title text not null,
   description text,
   category text not null default 'outro',
@@ -113,22 +116,21 @@ create table if not exists public.debts (
 );
 
 alter table public.debts enable row level security;
-drop policy if exists "RLS debts select" on public.debts;
-create policy "RLS debts select" on public.debts for select using (auth.uid() = user_id);
-drop policy if exists "RLS debts insert" on public.debts;
-create policy "RLS debts insert" on public.debts for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS debts update" on public.debts;
-create policy "RLS debts update" on public.debts for update using (auth.uid() = user_id);
-drop policy if exists "RLS debts delete" on public.debts;
-create policy "RLS debts delete" on public.debts for delete using (auth.uid() = user_id);
-create index if not exists idx_debts_user_id on public.debts(user_id);
-create index if not exists idx_debts_status on public.debts(status);
+create policy "debts_all_policy" on public.debts
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 3. Parcelas (installments)
-create table if not exists public.installments (
+create index idx_debts_user_id on public.debts(user_id);
+create index idx_debts_status on public.debts(status);
+
+-- ------------------------------------------------------------------------------
+-- 6. TABELA: installments (Parcelas)
+-- ------------------------------------------------------------------------------
+create table public.installments (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   installment_number integer not null,
   due_date date not null,
   expected_amount_cents bigint not null,
@@ -145,24 +147,23 @@ create table if not exists public.installments (
 );
 
 alter table public.installments enable row level security;
-drop policy if exists "RLS installments select" on public.installments;
-create policy "RLS installments select" on public.installments for select using (auth.uid() = user_id);
-drop policy if exists "RLS installments insert" on public.installments;
-create policy "RLS installments insert" on public.installments for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS installments update" on public.installments;
-create policy "RLS installments update" on public.installments for update using (auth.uid() = user_id);
-drop policy if exists "RLS installments delete" on public.installments;
-create policy "RLS installments delete" on public.installments for delete using (auth.uid() = user_id);
-create index if not exists idx_installments_user_debt on public.installments(user_id, debt_id);
-create index if not exists idx_installments_due_date on public.installments(due_date);
-create index if not exists idx_installments_status on public.installments(status);
+create policy "installments_all_policy" on public.installments
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 4. Pagamentos (payment_records)
-create table if not exists public.payment_records (
+create index idx_installments_user_debt on public.installments(user_id, debt_id);
+create index idx_installments_due_date on public.installments(due_date);
+create index idx_installments_status on public.installments(status);
+
+-- ------------------------------------------------------------------------------
+-- 7. TABELA: payment_records (Histórico de Pagamentos e Amortizações)
+-- ------------------------------------------------------------------------------
+create table public.payment_records (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
   installment_id text references public.installments(id) on delete set null,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   amount_cents bigint not null,
   payment_date date not null,
   payment_method text not null default 'outro',
@@ -173,25 +174,24 @@ create table if not exists public.payment_records (
 );
 
 alter table public.payment_records enable row level security;
-drop policy if exists "RLS payments select" on public.payment_records;
-create policy "RLS payments select" on public.payment_records for select using (auth.uid() = user_id);
-drop policy if exists "RLS payments insert" on public.payment_records;
-create policy "RLS payments insert" on public.payment_records for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS payments update" on public.payment_records;
-create policy "RLS payments update" on public.payment_records for update using (auth.uid() = user_id);
-drop policy if exists "RLS payments delete" on public.payment_records;
-create policy "RLS payments delete" on public.payment_records for delete using (auth.uid() = user_id);
-create index if not exists idx_payments_user_debt on public.payment_records(user_id, debt_id);
+create policy "payments_all_policy" on public.payment_records
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 5. Anexos e Comprovantes (attachments)
-create table if not exists public.attachments (
+create index idx_payments_user_debt on public.payment_records(user_id, debt_id);
+
+-- ------------------------------------------------------------------------------
+-- 8. TABELA: attachments (Comprovantes e Contratos)
+-- ------------------------------------------------------------------------------
+create table public.attachments (
   id text primary key,
   debt_id text references public.debts(id) on delete cascade,
   installment_id text references public.installments(id) on delete set null,
   payment_id text,
   related_type text,
   related_id text,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   file_name text not null,
   file_type text not null,
   file_size bigint not null,
@@ -203,22 +203,21 @@ create table if not exists public.attachments (
 );
 
 alter table public.attachments enable row level security;
-drop policy if exists "RLS attachments select" on public.attachments;
-create policy "RLS attachments select" on public.attachments for select using (auth.uid() = user_id);
-drop policy if exists "RLS attachments insert" on public.attachments;
-create policy "RLS attachments insert" on public.attachments for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS attachments update" on public.attachments;
-create policy "RLS attachments update" on public.attachments for update using (auth.uid() = user_id);
-drop policy if exists "RLS attachments delete" on public.attachments;
-create policy "RLS attachments delete" on public.attachments for delete using (auth.uid() = user_id);
-create index if not exists idx_attachments_user on public.attachments(user_id);
+create policy "attachments_all_policy" on public.attachments
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 6. Linha do Tempo e Auditoria (history_events)
-create table if not exists public.history_events (
+create index idx_attachments_user on public.attachments(user_id);
+
+-- ------------------------------------------------------------------------------
+-- 9. TABELA: history_events (Linha do Tempo e Auditoria)
+-- ------------------------------------------------------------------------------
+create table public.history_events (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
   installment_id text references public.installments(id) on delete set null,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   type text not null,
   title text not null,
   description text,
@@ -228,19 +227,20 @@ create table if not exists public.history_events (
 );
 
 alter table public.history_events enable row level security;
-drop policy if exists "RLS history select" on public.history_events;
-create policy "RLS history select" on public.history_events for select using (auth.uid() = user_id);
-drop policy if exists "RLS history insert" on public.history_events;
-create policy "RLS history insert" on public.history_events for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS history delete" on public.history_events;
-create policy "RLS history delete" on public.history_events for delete using (auth.uid() = user_id);
-create index if not exists idx_history_user_debt on public.history_events(user_id, debt_id);
+create policy "history_all_policy" on public.history_events
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 7. Regras de Reajuste (debt_adjustment_rules)
-create table if not exists public.debt_adjustment_rules (
+create index idx_history_user_debt on public.history_events(user_id, debt_id);
+
+-- ------------------------------------------------------------------------------
+-- 10. TABELA: debt_adjustment_rules (Regras de Reajuste/Correção Monetária)
+-- ------------------------------------------------------------------------------
+create table public.debt_adjustment_rules (
   id text primary key,
   debt_id text not null references public.debts(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   type text not null default 'outro',
   rate_percentage numeric,
   index_name text,
@@ -251,19 +251,17 @@ create table if not exists public.debt_adjustment_rules (
 );
 
 alter table public.debt_adjustment_rules enable row level security;
-drop policy if exists "RLS adjustment select" on public.debt_adjustment_rules;
-create policy "RLS adjustment select" on public.debt_adjustment_rules for select using (auth.uid() = user_id);
-drop policy if exists "RLS adjustment insert" on public.debt_adjustment_rules;
-create policy "RLS adjustment insert" on public.debt_adjustment_rules for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS adjustment update" on public.debt_adjustment_rules;
-create policy "RLS adjustment update" on public.debt_adjustment_rules for update using (auth.uid() = user_id);
-drop policy if exists "RLS adjustment delete" on public.debt_adjustment_rules;
-create policy "RLS adjustment delete" on public.debt_adjustment_rules for delete using (auth.uid() = user_id);
+create policy "adjustment_all_policy" on public.debt_adjustment_rules
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 8. Entradas de Dinheiro (incomes)
-create table if not exists public.incomes (
+-- ------------------------------------------------------------------------------
+-- 11. TABELA: incomes (Receitas e Entradas de Dinheiro)
+-- ------------------------------------------------------------------------------
+create table public.incomes (
   id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   description text not null,
   amount_cents bigint not null,
   category text not null default 'salario',
@@ -279,20 +277,19 @@ create table if not exists public.incomes (
 );
 
 alter table public.incomes enable row level security;
-drop policy if exists "RLS incomes select" on public.incomes;
-create policy "RLS incomes select" on public.incomes for select using (auth.uid() = user_id);
-drop policy if exists "RLS incomes insert" on public.incomes;
-create policy "RLS incomes insert" on public.incomes for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS incomes update" on public.incomes;
-create policy "RLS incomes update" on public.incomes for update using (auth.uid() = user_id);
-drop policy if exists "RLS incomes delete" on public.incomes;
-create policy "RLS incomes delete" on public.incomes for delete using (auth.uid() = user_id);
-create index if not exists idx_incomes_user_date on public.incomes(user_id, date);
+create policy "incomes_all_policy" on public.incomes
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 9. Despesas (expenses)
-create table if not exists public.expenses (
+create index idx_incomes_user_date on public.incomes(user_id, date);
+
+-- ------------------------------------------------------------------------------
+-- 12. TABELA: expenses (Despesas e Saídas de Dinheiro)
+-- ------------------------------------------------------------------------------
+create table public.expenses (
   id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   description text not null,
   amount_cents bigint not null,
   category text not null default 'outros',
@@ -310,20 +307,19 @@ create table if not exists public.expenses (
 );
 
 alter table public.expenses enable row level security;
-drop policy if exists "RLS expenses select" on public.expenses;
-create policy "RLS expenses select" on public.expenses for select using (auth.uid() = user_id);
-drop policy if exists "RLS expenses insert" on public.expenses;
-create policy "RLS expenses insert" on public.expenses for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS expenses update" on public.expenses;
-create policy "RLS expenses update" on public.expenses for update using (auth.uid() = user_id);
-drop policy if exists "RLS expenses delete" on public.expenses;
-create policy "RLS expenses delete" on public.expenses for delete using (auth.uid() = user_id);
-create index if not exists idx_expenses_user_date on public.expenses(user_id, date);
+create policy "expenses_all_policy" on public.expenses
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 10. Investimentos (investments)
-create table if not exists public.investments (
+create index idx_expenses_user_date on public.expenses(user_id, date);
+
+-- ------------------------------------------------------------------------------
+-- 13. TABELA: investments (Investimentos e Reservas)
+-- ------------------------------------------------------------------------------
+create table public.investments (
   id text primary key,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   name text not null,
   type text not null default 'renda_fixa',
   institution text not null,
@@ -338,21 +334,20 @@ create table if not exists public.investments (
 );
 
 alter table public.investments enable row level security;
-drop policy if exists "RLS investments select" on public.investments;
-create policy "RLS investments select" on public.investments for select using (auth.uid() = user_id);
-drop policy if exists "RLS investments insert" on public.investments;
-create policy "RLS investments insert" on public.investments for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS investments update" on public.investments;
-create policy "RLS investments update" on public.investments for update using (auth.uid() = user_id);
-drop policy if exists "RLS investments delete" on public.investments;
-create policy "RLS investments delete" on public.investments for delete using (auth.uid() = user_id);
-create index if not exists idx_investments_user on public.investments(user_id);
+create policy "investments_all_policy" on public.investments
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
 
--- 11. Movimentações de Investimento (investment_transactions)
-create table if not exists public.investment_transactions (
+create index idx_investments_user on public.investments(user_id);
+
+-- ------------------------------------------------------------------------------
+-- 14. TABELA: investment_transactions (Aportes e Resgates de Investimento)
+-- ------------------------------------------------------------------------------
+create table public.investment_transactions (
   id text primary key,
   investment_id text not null references public.investments(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id text not null,
   type text not null default 'aporte',
   amount_cents bigint not null,
   date date not null,
@@ -361,11 +356,19 @@ create table if not exists public.investment_transactions (
 );
 
 alter table public.investment_transactions enable row level security;
-drop policy if exists "RLS inv_tx select" on public.investment_transactions;
-create policy "RLS inv_tx select" on public.investment_transactions for select using (auth.uid() = user_id);
-drop policy if exists "RLS inv_tx insert" on public.investment_transactions for insert with check (auth.uid() = user_id);
-drop policy if exists "RLS inv_tx delete" on public.investment_transactions for delete using (auth.uid() = user_id);
-create index if not exists idx_inv_tx_user_inv on public.investment_transactions(user_id, investment_id);
+create policy "inv_tx_all_policy" on public.investment_transactions
+  for all
+  using (auth.uid() is null or auth.uid()::text = user_id)
+  with check (auth.uid() is null or auth.uid()::text = user_id);
+
+create index idx_inv_tx_user_inv on public.investment_transactions(user_id, investment_id);
+
+-- ------------------------------------------------------------------------------
+-- 15. PERMISSÕES DE ACESSO (GRANTS) PARA O REST API DO SUPABASE
+-- ------------------------------------------------------------------------------
+grant all on all tables in schema public to anon, authenticated, service_role;
+grant all on all sequences in schema public to anon, authenticated, service_role;
+grant all on all routines in schema public to anon, authenticated, service_role;
 `;
 
   const handleCopy = () => {

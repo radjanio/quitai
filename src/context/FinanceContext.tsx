@@ -26,6 +26,7 @@ import {
   calculateDebtSummary,
   calculateGlobalMetrics,
   saveAttachmentData,
+  getAttachmentData,
   deleteAttachmentData,
 } from '../services/storage';
 import { generateInstallmentDueDates, getTodayIso, isOverdue } from '../utils/dates';
@@ -317,15 +318,54 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
             setDebts(supa.debts);
             setInstallments(supa.installments);
             setPayments(supa.payments);
-            setAttachments(supa.attachments);
             setHistory(supa.history);
             setAdjustmentRules(supa.adjustmentRules);
             setHasDemoData(supa.debts.some((d) => d.isDemo));
           }
+
+          if (supa.attachments.length > 0) {
+            setAttachments(supa.attachments);
+            // Cache downloaded dataUrls into IndexedDB so they are available offline
+            supa.attachments.forEach((att) => {
+              if (att.dataUrl) {
+                saveAttachmentData(att.id, att.dataUrl);
+              }
+            });
+          }
+
           if (supa.incomes.length > 0) setIncomes(supa.incomes);
           if (supa.expenses.length > 0) setExpenses(supa.expenses);
           if (supa.investments.length > 0) setInvestments(supa.investments);
           if (supa.investmentTransactions.length > 0) setInvestmentTransactions(supa.investmentTransactions);
+
+          // Synchronize locally to StorageService so new devices maintain instant cache
+          if (supa.debts.length > 0 || supa.attachments.length > 0 || supa.incomes.length > 0) {
+            StorageService.saveAll(
+              supa.debts.length > 0 ? supa.debts : userDebts,
+              supa.debts.length > 0 ? supa.installments : allInstallments.filter((i) => userDebtIds.has(i.debtId)),
+              supa.debts.length > 0 ? supa.payments : allPayments.filter((p) => userDebtIds.has(p.debtId)),
+              supa.attachments.length > 0 ? supa.attachments : allAttachments,
+              supa.debts.length > 0 ? supa.history : allHistory.filter((h) => userDebtIds.has(h.debtId)),
+              supa.debts.length > 0 ? supa.adjustmentRules : allRules.filter((r) => userDebtIds.has(r.debtId)),
+              supa.incomes.length > 0 ? supa.incomes : undefined,
+              supa.expenses.length > 0 ? supa.expenses : undefined,
+              supa.investments.length > 0 ? supa.investments : undefined,
+              supa.investmentTransactions.length > 0 ? supa.investmentTransactions : undefined
+            );
+          }
+
+          // Auto-migration check: If this device has local attachments whose data_url was not yet pushed to Supabase, push now!
+          allAttachments.forEach(async (localAtt) => {
+            const remoteAtt = supa.attachments.find((r) => r.id === localAtt.id);
+            if (!remoteAtt || !remoteAtt.dataUrl) {
+              const localBlob = await getAttachmentData(localAtt.id);
+              if (localBlob) {
+                SupabaseService.saveAttachment(currentUserId, localAtt, localBlob).catch((e) =>
+                  console.warn('Auto-sync attachment notice:', e)
+                );
+              }
+            }
+          });
         }
       })
       .catch((err) => console.warn('Supabase fetch notice:', err));
@@ -644,13 +684,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         createdAt: now,
       };
 
+      const currentUserId = user?.id || userProfile.id;
+      if (currentUserId) {
+        SupabaseService.saveAttachment(currentUserId, newAttachment, attachmentData.dataUrl).catch((err) =>
+          console.warn('Supabase general attachment upload warning:', err)
+        );
+      }
+
       const updated = [newAttachment, ...attachments];
       setAttachments(updated);
       persistState(debts, installments, payments, updated, history, adjustmentRules, incomes, expenses, investments, investmentTransactions);
       showToast('Documento anexado com sucesso!', 'success');
       return newAttachment;
     },
-    [attachments, debts, installments, payments, history, adjustmentRules, incomes, expenses, investments, investmentTransactions, persistState, showToast]
+    [attachments, debts, installments, payments, history, adjustmentRules, incomes, expenses, investments, investmentTransactions, user?.id, userProfile.id, persistState, showToast]
   );
 
   // Add Debt
@@ -799,6 +846,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
       const debt = debts.find((d) => d.id === inst.debtId);
       const now = new Date().toISOString();
+      const currentUserId = user?.id || userProfile.id;
       const paymentId = `pay-${Date.now()}`;
 
       // Create Payment Record
@@ -856,9 +904,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
           fileSize: Math.round(receiptFile.dataUrl.length * 0.75),
           category: 'comprovante_parcela',
           description: receiptFile.description || `Comprovante da Parcela #${inst.installmentNumber}`,
+          dataUrl: receiptFile.dataUrl,
           createdAt: now,
         };
         await saveAttachmentData(attId, receiptFile.dataUrl);
+
+        if (currentUserId) {
+          SupabaseService.saveAttachment(currentUserId, newAtt, receiptFile.dataUrl).catch((err) =>
+            console.warn('Supabase receipt attachment upload warning:', err)
+          );
+        }
+
         updatedAttachments = [newAtt, ...attachments];
       }
 
@@ -1339,10 +1395,20 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         fileSize: fileInfo.fileSize,
         category: fileInfo.category,
         description: fileInfo.description,
+        dataUrl: fileInfo.dataUrl,
         createdAt: now,
       };
 
+      // 1. Cache locally into IndexedDB
       await saveAttachmentData(attId, fileInfo.dataUrl);
+
+      // 2. Persist definitively to Supabase database so it is available across all devices
+      const currentUserId = user?.id || userProfile.id;
+      if (currentUserId) {
+        SupabaseService.saveAttachment(currentUserId, newAtt, fileInfo.dataUrl).catch((err) =>
+          console.warn('Supabase attachment upload warning:', err)
+        );
+      }
 
       const updatedAttachments = [newAtt, ...attachments];
       const historyEvent: HistoryEvent = {
@@ -1351,7 +1417,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
         installmentId: fileInfo.installmentId,
         type: 'anexo_adicionado',
         title: 'Documento anexado',
-        description: `Arquivo "${fileInfo.fileName}" adicionado aos comprovantes.`,
+        description: `Arquivo "${fileInfo.fileName}" salvo no banco e adicionado aos comprovantes.`,
         timestamp: now,
       };
       const updatedHistory = [historyEvent, ...history];
@@ -1360,22 +1426,30 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setHistory(updatedHistory);
 
       persistState(debts, installments, payments, updatedAttachments, updatedHistory, adjustmentRules);
-      showToast('Documento anexado com sucesso!', 'success');
+      showToast('Documento salvo no banco de dados com sucesso!', 'success');
       return newAtt;
     },
-    [attachments, debts, installments, payments, history, adjustmentRules, persistState, showToast]
+    [attachments, debts, installments, payments, history, adjustmentRules, user?.id, userProfile.id, persistState, showToast]
   );
 
   // Delete Attachment
   const deleteAttachment = useCallback(
     async (attachmentId: string) => {
       await deleteAttachmentData(attachmentId);
+
+      const currentUserId = user?.id || userProfile.id;
+      if (currentUserId) {
+        SupabaseService.deleteAttachment(attachmentId, currentUserId).catch((err) =>
+          console.warn('Supabase attachment delete warning:', err)
+        );
+      }
+
       const updatedAttachments = attachments.filter((a) => a.id !== attachmentId);
       setAttachments(updatedAttachments);
       persistState(debts, installments, payments, updatedAttachments, history, adjustmentRules);
       showToast('Documento removido.', 'info');
     },
-    [attachments, debts, installments, payments, history, adjustmentRules, persistState, showToast]
+    [attachments, debts, installments, payments, history, adjustmentRules, user?.id, userProfile.id, persistState, showToast]
   );
 
   // Add Adjustment Rule
@@ -1536,9 +1610,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   const getDebtAttachments = useCallback(
     (debtId: string): Attachment[] => {
-      return attachments.filter((a) => a.debtId === debtId);
+      const debtInstIds = new Set(installments.filter((i) => i.debtId === debtId).map((i) => i.id));
+      return attachments.filter(
+        (a) => a.debtId === debtId || (a.installmentId && debtInstIds.has(a.installmentId))
+      );
     },
-    [attachments]
+    [attachments, installments]
   );
 
   const getDebtHistory = useCallback(
